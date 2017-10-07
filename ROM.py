@@ -11,6 +11,8 @@ class ROM:
     header = None
     prg_rom_size = 0
     chr_rom_size = 0
+    prg_rom = None
+    chr_rom = None
     flags6 = 0
     flags7 = 0
     
@@ -37,10 +39,15 @@ class ROM:
             # Bitfield 2
             self.flags7 = self.header[7]
 
+            # Right now, we are ignoring the existence of Trainer!
+            
             # The prg rom data
             self.prg_rom = self.FILE.read(16 * 1024 * self.prg_rom_size)
 
-            # TODO: Where's the chr rom data?  Is it after prg?
+            # The chr rom data
+            self.chr_rom = self.FILE.read(8 * 1024 * self.chr_rom_size)
+
+            # Now, we need to flush to RAM
         
         except Exception as e:
             print("Invalid ROM")

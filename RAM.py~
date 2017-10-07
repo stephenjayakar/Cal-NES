@@ -1,0 +1,4 @@
+class RAM:
+    memory = bytes()
+    def __init__(self):
+        
