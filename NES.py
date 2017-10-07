@@ -1,5 +1,6 @@
 from ROM import ROM
 from RAM import RAM
+from CPU import CPU
 import time
 
 class NES:
