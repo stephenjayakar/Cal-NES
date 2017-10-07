@@ -38,7 +38,7 @@ class CPU:
 
 
         #***** AND - Logical AND *****
-        elif opcode == 0x29: #Immediate, 2, 2
+         elif opcode == 0x29: #Immediate, 2, 2
             return 0
         elif opcode == 0x25: #Zero Page, 2, 3
             return 0
