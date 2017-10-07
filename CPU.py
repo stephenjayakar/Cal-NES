@@ -15,9 +15,10 @@ class CPU:
 
     opcode_to_instruction = {}
 
-    def __init__(self, ram, PC_START = 0x8000):
-        self.PC = PC_START
+    def __init__(self, ram, PC_START = 0x8000, SP_START = 0x200):
         self.ram = ram
+        self.PC = PC_START
+        self.SP = SP_START #not sure if this should be 100
 
         CPU.opcode_to_instruction = {0x69: self.ADC, 0x65: self.ADC, 0x75: self.ADC, 0x6D: self.ADC, 0x7D: self.ADC,
                                      0x79: self.ADC, 0x61: self.ADC, 0x71: self.ADC,
@@ -88,6 +89,9 @@ class CPU:
     def get_mem(self, addr):
         return self.ram.mem_get(addr, 1)[0]
 
+    def set_mem(self, addr, byte):
+        self.ram.mem_set(addr, bytearray([byte]))
+
     def get_PC_byte(self):
         byte = self.get_mem(self.PC)
         self.PC += 1
@@ -97,10 +101,10 @@ class CPU:
         return self.get_PC_byte() + offset
 
     def get_zero_page_addr_x(self):
-        return self.get_zero_page_addr(self.reg["x"])
+        return self.get_zero_page_addr(self.X)
 
     def get_zero_page_addr_y(self):
-        return self.get_zero_page_addr(self.reg["y"])
+        return self.get_zero_page_addr(self.Y)
 
     def get_zero_page(self, offset=0):
         addr = self.get_PC_byte() + offset
@@ -108,10 +112,10 @@ class CPU:
         return mem_byte
 
     def get_zero_page_x(self):
-        return self.get_zero_page(self.reg["x"])
+        return self.get_zero_page(self.X)
 
     def get_zero_page_y(self):
-        return self.get_zero_page(self.reg["y"])
+        return self.get_zero_page(self.Y)
 
     def get_absolute_addr(self, offset=0):
         lower = self.get_PC_byte()
@@ -119,10 +123,10 @@ class CPU:
         return (upper << 8 | lower) + offset
 
     def get_absolute_addr_x(self):
-        return self.get_absolute_addr(self.reg["x"])
+        return self.get_absolute_addr(self.X)
 
     def get_absolute_addr_y(self):
-        return self.get_absolute_addr(self.reg["y"])
+        return self.get_absolute_addr(self.Y)
 
     def get_absolute(self, offset=0):
         lower = self.get_PC_byte()
@@ -132,10 +136,10 @@ class CPU:
         return mem_byte
 
     def get_absolute_x(self):
-        return self.get_absolute(self.reg["x"])
+        return self.get_absolute(self.X)
 
     def get_absolute_y(self):
-        return self.get_absolute(self.reg["y"])
+        return self.get_absolute(self.Y)
 
     def get_relative_addr(self):
         offset = self.convert_8bit_twos(self.get_PC_byte())
@@ -153,18 +157,12 @@ class CPU:
 
     def run_instruction(self):
         opcode = self.get_PC_byte()
-        self.evaluate_opcode(opcode)
-        print(self.P)
-
-
-    def evaluate_opcode(self, opcode):
         f = CPU.opcode_to_instruction[opcode]
-        return f(opcode)
-
+        res = f(opcode)
+        self._cpu_dump()
 
     def ADC(self, opcode):
         # ***** ADC(ADd with Carry) *****
-        operand = 0
         if opcode == 0x69: #Immediate, 2, 2
             operand = self.get_PC_byte();
         elif opcode == 0x65: #Zero Page, 2, 3
@@ -181,12 +179,15 @@ class CPU:
             return self.invalid_instruction(opcode)
         elif opcode == 0x71: #(Indirect,Y) 2, 5
             return self.invalid_instruction(opcode)
+        else:
+            return self.invalid_instruction(opcode)
 
         result = self.A + operand + self.C()
-        self.update_C(result)
         self.A = result & 0xFF
-        self.update_Z(self.A)
-        self.update_N(self.A)
+
+        self.set_C(result >> 8)
+        self.set_Z(self.A == 0)
+        self.set_N(self.A >> 7)
 
 
     def AND(self, opcode):
@@ -219,19 +220,18 @@ class CPU:
             return self.invalid_instruction(opcode)
 
         # update processor status
-        self.update_Z(self.A)
-        self.update_N(self.A)
+        self.set_Z(self.A == 0)
+        self.set_N(self.A >> 7)
 
     def ASL(self, opcode):
         #***** ASL - Arithmetic Shift Left: *****"""
-        result = 0
-
         if opcode == 0x0A: #Accumulator, 1, 2
             operand = self.A
             result = (self.A << 1) & 0xFF
             self.A = result
 
         else:
+            addr = 0
             if opcode == 0x06: #Zero Page, 2, 5
                 addr = self.get_zero_page_addr()
             elif opcode == 0x16: #Zero Page,X, 2, 6
@@ -240,11 +240,16 @@ class CPU:
                 addr = self.get_absolute_addr()
             elif opcode == 0x1E: #Absolute,X, 3, 7
                 addr = self.get_absolute_addr_x()
+            else:
+                return self.invalid_instruction(opcode)
+
             operand = self.get_mem(addr)
+            result = (operand << 1) & 0xFF
+            self.set_mem(addr, result)
 
         self.set_C(operand >> 7)
-        self.update_Z(self.A)
-        self.update_N(result)
+        self.set_Z(self.A == 0)
+        self.set_N(result >> 7)
 
     def BCC(self, opcode):
         #***** BCC - Branch if Carry Clear *****
@@ -275,7 +280,6 @@ class CPU:
 
     def BIT(self, opcode):
         #***** BIT - Bit Test *****
-        operand = 0
         if opcode == 0x24: #Zero Page, 2, 3
             operand = self.get_zero_page()
         elif opcode == 0x2C:  #Absolute, 3, 4
@@ -283,8 +287,8 @@ class CPU:
         else:
             return self.invalid_instruction(opcode)
 
-        result = self.A() & operand
-        self.update_Z(result)
+        result = self.A & operand
+        self.set_Z(result == 0)
         self.set_V(self.get_bit(operand, 6))
         self.set_N(self.get_bit(operand, 7))
 
@@ -319,7 +323,7 @@ class CPU:
     def BRK(self, opcode):
         #***** BRK - Force Interrupt *****
         if opcode == 0x00:  #Implied, 1, 7
-            return 0
+            return self.invalid_instruction(opcode)
         else:
             return self.invalid_instruction(opcode)
 
@@ -371,7 +375,6 @@ class CPU:
 
     def CMP(self, opcode):
         #***** CMP - Compare *****
-        operand = 0
         if opcode == 0xC9: #Immediate 2, 2
             operand = self.get_PC_byte()
         elif opcode == 0xC5: #Zero Page 2, 3
@@ -392,101 +395,136 @@ class CPU:
             return self.invalid_instruction(opcode)
 
         result = self.A - operand
+        self.set_C(self.A >= operand)
+        self.set_Z(result == 0)
+        self.set_N(result >> 7)
 
     def CPX(self, opcode):
         #***** CPX - Compare X Register *****
         if opcode == 0xE0: #Immediate 2, 2
-            return 0
+            operand = self.get_PC_byte()
         elif opcode == 0xE4: #Zero Page 2, 3
-            return 0
+            operand = self.get_zero_page()
         elif opcode == 0xEC: #Absolute, 3, 4
-            return 0
+            operand = self.get_absolute()
         else:
             return self.invalid_instruction(opcode)
+
+        result = self.X - operand
+        self.set_C(self.X >= operand)
+        self.set_Z(result == 0)
+        self.set_N(result >> 7)
 
     def CPY(self, opcode):
         #***** CPY - Compare Y Register *****
         if opcode == 0xC0: #Immediate 2, 2
-            return 0
+            operand = self.get_PC_byte()
         elif opcode == 0xC4: #Zero Page 2, 3
-            return 0
+            operand = self.get_zero_page()
         elif opcode == 0xCC: #Absolute, 3, 4
-            return 0
+            operand = self.get_absolute()
         else:
             return self.invalid_instruction(opcode)
+
+        result = self.Y - operand
+        self.set_C(self.Y >= operand)
+        self.set_Z(result == 0)
+        self.set_N(result >> 7)
 
     def DEC(self, opcode):
         #***** DEC - Decrement Memory *****
         if opcode == 0xC6: #Zero Page 2, 5
-            return 0
+            addr = self.get_zero_page_addr()
         elif opcode == 0xD6: #Zero Page,X, 2, 6
-            return 0
+            addr = self.get_zero_page_addr_x()
         elif opcode == 0xCE: #Absolute, 3, 6
-            return 0
+            addr = self.get_absolute_addr()
         elif opcode == 0xDE: #Absolute,X, 3, 7
-            return 0
+            addr = self.get_absolute_addr_x()
         else:
             return self.invalid_instruction(opcode)
+
+        result = self.get_mem(addr) - 1
+        self.set_mem(addr, result)
+        self.set_Z(result == 0)
+        self.set_N(result >> 7)
 
     def DEX(self, opcode):
         #***** DEX - Decrement X Register *****
         if opcode == 0xCA: #Implied 1, 2
-            return 0
+            self.X = self.X - 1
+            self.set_Z(self.X == 0)
+            self.set_N(self.X >> 7)
+
         else:
             return self.invalid_instruction(opcode)
 
     def DEY(self, opcode):
         #***** DEY - Decrement Y Register *****
         if opcode == 0x88: #Implied 1, 2
-            return 0
+            self.Y = self.Y - 1
+            self.set_Z(self.Y == 0)
+            self.set_N(self.Y >> 7)
         else:
             return self.invalid_instruction(opcode)
 
     def EOR(self, opcode):
         #***** EOR - Exclusive OR *****
         if opcode == 0x49:  # Immediate, 2, 2
-            return 0
+            self.A = self.A ^ self.get_PC_byte()
         elif opcode == 0x45:  # Zero Page, 2, 3
-            return 0
+            self.A = self.A ^ self.get_zero_page()
         elif opcode == 0x55:  # Zero Page X, 2, 4
-            return 0
+            self.A = self.A ^ self.get_zero_page_x()
         elif opcode == 0x4D:  # Absolute, 3, 4
-            return 0
+            self.A = self.A ^ self.get_absolute()
         elif opcode == 0x5D:  # Absolute X, 3, 4 (+1 if page crossed)
-            return 0
+            self.A = self.A ^ self.get_absolute_x()
         elif opcode == 0x59:  # Absolute Y, 3, 4 (+1 if page crossed)
-            return 0
+            self.A = self.A ^ self.get_absolute_y()
         elif opcode == 0x41:  # Indirect X, 2, 6
-            return 0
+            return self.invalid_instruction(opcode)
         elif opcode == 0x51:  # Indirect Y, 2, 5 (+1 if page crossed)
-            return 0
+            return self.invalid_instruction(opcode)
         else:
             return self.invalid_instruction(opcode)
+
+        self.set_Z(self.A == 0)
+        self.set_N(self.A >> 7)
 
     def INC(self, opcode):
         #***** INC - Increment Memory *****
         if opcode == 0xE6:  # Zero Page, 2, 5
-            return 0
+            addr = self.get_zero_page_addr()
         elif opcode == 0xF6:  # Zero Page X, 2, 6
-            return 0
+            addr = self.get_zero_page_addr_x()
         elif opcode == 0xEE:  # Absolute, 3, 6
-            return 0
+            addr = self.get_absolute_addr()
         elif opcode == 0xFE:  # Absolute X, 3, 7
-            return 0
+            addr = self.get_absolute_addr_x()
         else:
             return self.invalid_instruction(opcode)
+
+        result = self.get_mem(addr) + 1
+        self.set_mem(addr, result)
+        self.set_Z(result == 0)
+        self.set_N(result >> 7)
 
     def INX(self, opcode):
         #***** INX - Increment X Register *****
         if opcode == 0xE8:  # Implied, 1, 2
-            return 0
+            self.X = self.X + 1
+            self.set_Z(self.X == 0)
+            self.set_N(self.X >> 7)
         else:
             return self.invalid_instruction(opcode)
 
     def INY(self, opcode):
         #***** INY - Increment Y Register *****
         if opcode == 0xC8:  # Implied, 1, 2
-            return 0
+            self.Y = self.Y + 1
+            self.set_Z(self.Y == 0)
+            self.set_N(self.Y >> 7)
         else:
             return self.invalid_instruction(opcode)
 
@@ -863,7 +901,7 @@ class CPU:
 
     # Prints contents of registers
     def _cpu_dump(self) -> str:
-        return "Program Counter: " + str(self.PC) + "\n" + str(self.reg)
+        return "Program Counter: " + str(self.PC) + "\n" + str(self.reg) + "\n" + str(self.P)
     
     def __str__(self) -> str:
         return self._cpu_dump()
@@ -881,6 +919,30 @@ class CPU:
     @A.setter
     def A(self, value) -> None:
         self.reg["A"] = value
+
+    @property
+    def X(self) -> int:
+        return self.reg["X"]
+
+    @X.getter
+    def X(self) -> int:
+        return self.reg["X"]
+
+    @X.setter
+    def X(self, value) -> None:
+        self.reg["X"] = value
+
+    @property
+    def Y(self) -> int:
+        return self.reg["Y"]
+
+    @Y.getter
+    def Y(self) -> int:
+        return self.reg["Y"]
+
+    @Y.setter
+    def Y(self, value) -> None:
+        self.reg["Y"] = value
 
 
 
