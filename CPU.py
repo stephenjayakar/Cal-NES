@@ -38,7 +38,7 @@ class CPU:
                                      0x58: self.CLI,
                                      0xB8: self.CLV,
                                      0xC9: self.CMP, 0xC5: self.CMP, 0xD5: self.CMP, 0xCD: self.CMP, 0xDD: self.CMP,
-                                     0xD9: self.CMP, 0xC1: self.CMP, 0xD1 self.CMP,
+                                     0xD9: self.CMP, 0xC1: self.CMP, 0xD1: self.CMP,
                                      0xE0: self.CPX, 0xE4: self.CPX, 0xEC: self.CPX,
                                      0xC0: self.CPY, 0xC4: self.CPY, 0xCC: self.CPY,
                                      0xC6: self.DEC, 0xD6: self.DEC, 0xCE: self.DEC, 0xDE: self.DEC,
@@ -250,7 +250,7 @@ class CPU:
         if opcode == 0x00:  #Implied, 1, 7
             return 0
 
-    def BVC(self, opcode)
+    def BVC(self, opcode):
         #***** BVC - Branch if OverFlow Clear *****
         if opcode == 0x50:  #Relative, 2, 2
             return 0
@@ -422,7 +422,7 @@ class CPU:
         elif opcode == 0xBE:  # Absolute X, 3, 4 (+1 if page crossed)
             return 0
 
-    def LFY(self, opcode):
+    def LDY(self, opcode):
         #***** LDY - Load Y Register *****
         if opcode == 0xA0:  # Immediate, 2, 2
             return 0
