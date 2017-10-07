@@ -93,6 +93,15 @@ class CPU:
         self.PC += 1
         return byte
 
+    def get_zero_page_addr(self, offset=0):
+        return self.get_PC_byte() + offset
+
+    def get_zero_page_addr_x(self):
+        return self.get_zero_page_addr(self.reg["x"])
+
+    def get_zero_page_addr_y(self):
+        return self.get_zero_page_addr(self.reg["y"])
+
     def get_zero_page(self, offset=0):
         addr = self.get_PC_byte() + offset
         mem_byte = self.get_mem(addr)
@@ -103,6 +112,17 @@ class CPU:
 
     def get_zero_page_y(self):
         return self.get_zero_page(self.reg["y"])
+
+    def get_absolute_addr(self, offset=0):
+        lower = self.get_PC_byte()
+        upper = self.get_PC_byte()
+        return (upper << 8 | lower) + offset
+
+    def get_absolute_addr_x(self):
+        return self.get_absolute_addr(self.reg["x"])
+
+    def get_absolute_addr_y(self):
+        return self.get_absolute_addr(self.reg["y"])
 
     def get_absolute(self, offset=0):
         lower = self.get_PC_byte()
@@ -144,22 +164,29 @@ class CPU:
 
     def ADC(self, opcode):
         # ***** ADC(ADd with Carry) *****
+        operand = 0
         if opcode == 0x69: #Immediate, 2, 2
-            return 0
+            operand = self.get_PC_byte();
         elif opcode == 0x65: #Zero Page, 2, 3
-            return 0
+            operand = self.get_zero_page_x()
         elif opcode == 0x75: #Zero Page,X, 2, 4
-            return 0
+            operand = self.get_zero_page_x()
         elif opcode == 0x6D: #Absolute, 3, 4
-            return 0
+            operand = self.get_absolute()
         elif opcode == 0x7D: #Absolute,X, 3, 4
-            return 0
+            operand = self.get_absolute_x()
         elif opcode == 0x79: #Absolute,Y, 3, 4
-            return 0
+            operand = self.get_absolute_y()
         elif opcode == 0x61: #(Indirect,X) 2, 6
-            return 0
+            return self.invalid_instruction(opcode)
         elif opcode == 0x71: #(Indirect,Y) 2, 5
-            return 0
+            return self.invalid_instruction(opcode)
+
+        result = self.A + operand + self.C()
+        self.update_C(result)
+        self.A = result & 0xFF
+        self.update_Z(self.A)
+        self.update_N(self.A)
 
 
     def AND(self, opcode):
@@ -183,121 +210,188 @@ class CPU:
             self.A = self.A & self.get_absolute_y()
 
         elif opcode == 0x21: #(Indirect,X) 2, 6
-            return 0
+            return self.invalid_instruction(opcode)
 
         elif opcode == 0x31: #(Indirect,Y) 2, 5
-            return 0
+            return self.invalid_instruction(opcode)
+
         else:
             return self.invalid_instruction(opcode)
 
         # update processor status
-        self.set_Z(self.reg["A"])
-        self.set_N(self.reg["A"])
+        self.update_Z(self.A)
+        self.update_N(self.A)
 
     def ASL(self, opcode):
         #***** ASL - Arithmetic Shift Left: *****"""
+        result = 0
+
         if opcode == 0x0A: #Accumulator, 1, 2
-            return 0
-        elif opcode == 0x06: #Zero Page, 2, 5
-            return 0
-        elif opcode == 0x16: #Zero Page,X, 2, 6
-            return 0
-        elif opcode == 0x0E: #Absolute, 3, 6
-            return 0
-        elif opcode == 0x1E: #Absolute,X, 3, 7
-            return 0
+            operand = self.A
+            result = (self.A << 1) & 0xFF
+            self.A = result
+
+        else:
+            if opcode == 0x06: #Zero Page, 2, 5
+                addr = self.get_zero_page_addr()
+            elif opcode == 0x16: #Zero Page,X, 2, 6
+                addr = self.get_zero_page_addr_x()
+            elif opcode == 0x0E: #Absolute, 3, 6
+                addr = self.get_absolute_addr()
+            elif opcode == 0x1E: #Absolute,X, 3, 7
+                addr = self.get_absolute_addr_x()
+            operand = self.get_mem(addr)
+
+        self.set_C(operand >> 7)
+        self.update_Z(self.A)
+        self.update_N(result)
 
     def BCC(self, opcode):
         #***** BCC - Branch if Carry Clear *****
+        addr = self.get_relative_addr()
         if opcode == 0x90:  #Relative, 2, 2
-            return 0
+            if not self.C():
+                self.PC = addr
+        else:
+            return self.invalid_instruction(opcode)
 
     def BCS(self, opcode):
         #***** BCS - Branch if Carry Set *****
+        addr = self.get_relative_addr()
         if opcode == 0xB0:  #Relative, 2, 2
-            return 0
+            if self.C():
+                self.PC = addr
+        else:
+            return self.invalid_instruction(opcode)
 
     def BEQ(self, opcode):
         #***** BEQ - Branch if Equal *****
+        addr = self.get_relative_addr()
         if opcode == 0xF0:  #Relative, 2, 2
-            return 0
+            if self.Z():
+                self.PC = addr
+        else:
+            return self.invalid_instruction(opcode)
 
     def BIT(self, opcode):
         #***** BIT - Bit Test *****
+        operand = 0
         if opcode == 0x24: #Zero Page, 2, 3
-            return 0
-        if opcode == 0x2C:  #Absolute, 3, 4
-            return 0
+            operand = self.get_zero_page()
+        elif opcode == 0x2C:  #Absolute, 3, 4
+            operand = self.get_absolute()
+        else:
+            return self.invalid_instruction(opcode)
+
+        result = self.A() & operand
+        self.update_Z(result)
+        self.set_V(self.get_bit(operand, 6))
+        self.set_N(self.get_bit(operand, 7))
 
 
     def BMI(self, opcode):
         #***** BMI - Branch if Minus *****
+        addr = self.get_relative_addr()
         if opcode == 0x30:  #Relative, 2, 2
-            return 0
+            if self.N():
+                self.PC = addr
+        else:
+            return self.invalid_instruction(opcode)
 
     def BNE(self, opcode):
         #***** BNE - Branch if Not Equal *****
+        addr = self.get_relative_addr()
         if opcode == 0xD0:  #Relative, 2, 2
-            return 0
+            if not self.Z():
+                self.PC = addr
+        else:
+            return self.invalid_instruction(opcode)
 
     def BPL(self, opcode):
         #***** BPL - Branch if Positive *****
+        addr = self.get_relative_addr()
         if opcode == 0x10:  #Relative, 2, 2
-            return 0
+            if not self.N():
+                self.PC = addr
+        else:
+            return self.invalid_instruction(opcode)
 
     def BRK(self, opcode):
         #***** BRK - Force Interrupt *****
         if opcode == 0x00:  #Implied, 1, 7
             return 0
+        else:
+            return self.invalid_instruction(opcode)
 
     def BVC(self, opcode):
         #***** BVC - Branch if OverFlow Clear *****
+        addr = self.get_relative_addr()
         if opcode == 0x50:  #Relative, 2, 2
-            return 0
+            if not self.V():
+                self.PC = addr
+        else:
+            return self.invalid_instruction(opcode)
 
     def BVS(self, opcode):
         #***** BVS - Branch if OverFlow Set *****
+        addr = self.get_relative_addr()
         if opcode == 0x70:  #Relative, 2, 2
-            return 0
+            if self.V():
+                self.PC = addr
+        else:
+            return self.invalid_instruction(opcode)
 
     def CLC(self, opcode):
         #***** CLC - Clear Carry Flag *****
         if opcode == 0x18: #Implied, 1, 2
-            return 0
+            self.set_C(0)
+        else:
+            return self.invalid_instruction(opcode)
 
     def CLD(self, opcode):
         #***** CLD - Clear Decimal Mode *****
         if opcode == 0xD8: #Implied, 1, 2
-            return 0
+            self.set_D(0)
+        else:
+            return self.invalid_instruction(opcode)
 
     def CLI(self, opcode):
         #***** CLI - Clear Interrupt Disable *****
         if opcode == 0x58: #Implied, 1, 2
-            return 0
+            self.set_I(0)
+        else:
+            return self.invalid_instruction(opcode)
 
     def CLV(self, opcode):
         #***** CLV - Clear Overflow Flag *****
         if opcode == 0xB8: #Implied, 1, 2
-            return 0
+            self.set_V(0)
+        else:
+            return self.invalid_instruction(opcode)
 
     def CMP(self, opcode):
         #***** CMP - Compare *****
+        operand = 0
         if opcode == 0xC9: #Immediate 2, 2
-            return 0
+            operand = self.get_PC_byte()
         elif opcode == 0xC5: #Zero Page 2, 3
-            return 0
+            operand = self.get_zero_page()
         elif opcode == 0xD5: #Zero Page,X 2, 4
-            return 0
+            operand = self.get_zero_page_x()
         elif opcode == 0xCD: #Absolute 3, 4
-            return 0
+            operand = self.get_zero_page_y()
         elif opcode == 0xDD: #Absolute,X 3, 4
-            return 0
+            operand = self.get_absolute_x()
         elif opcode == 0xD9: #Absolute,Y, 3, 4
-            return 0
+            operand = self.get_absolute_y()
         elif opcode == 0xC1: #(Indirect,X), 2, 6
-            return 0
+            return self.invalid_instruction(opcode)
         elif opcode == 0xD1: #(Indirect),Y, 2, 5
-            return 0
+            return self.invalid_instruction(opcode)
+        else:
+            return self.invalid_instruction(opcode)
+
+        result = self.A - operand
 
     def CPX(self, opcode):
         #***** CPX - Compare X Register *****
@@ -307,6 +401,8 @@ class CPU:
             return 0
         elif opcode == 0xEC: #Absolute, 3, 4
             return 0
+        else:
+            return self.invalid_instruction(opcode)
 
     def CPY(self, opcode):
         #***** CPY - Compare Y Register *****
@@ -316,6 +412,8 @@ class CPU:
             return 0
         elif opcode == 0xCC: #Absolute, 3, 4
             return 0
+        else:
+            return self.invalid_instruction(opcode)
 
     def DEC(self, opcode):
         #***** DEC - Decrement Memory *****
@@ -327,16 +425,22 @@ class CPU:
             return 0
         elif opcode == 0xDE: #Absolute,X, 3, 7
             return 0
+        else:
+            return self.invalid_instruction(opcode)
 
     def DEX(self, opcode):
         #***** DEX - Decrement X Register *****
         if opcode == 0xCA: #Implied 1, 2
             return 0
+        else:
+            return self.invalid_instruction(opcode)
 
     def DEY(self, opcode):
         #***** DEY - Decrement Y Register *****
         if opcode == 0x88: #Implied 1, 2
             return 0
+        else:
+            return self.invalid_instruction(opcode)
 
     def EOR(self, opcode):
         #***** EOR - Exclusive OR *****
@@ -356,6 +460,8 @@ class CPU:
             return 0
         elif opcode == 0x51:  # Indirect Y, 2, 5 (+1 if page crossed)
             return 0
+        else:
+            return self.invalid_instruction(opcode)
 
     def INC(self, opcode):
         #***** INC - Increment Memory *****
@@ -367,16 +473,22 @@ class CPU:
             return 0
         elif opcode == 0xFE:  # Absolute X, 3, 7
             return 0
+        else:
+            return self.invalid_instruction(opcode)
 
     def INX(self, opcode):
         #***** INX - Increment X Register *****
         if opcode == 0xE8:  # Implied, 1, 2
             return 0
+        else:
+            return self.invalid_instruction(opcode)
 
     def INY(self, opcode):
         #***** INY - Increment Y Register *****
         if opcode == 0xC8:  # Implied, 1, 2
             return 0
+        else:
+            return self.invalid_instruction(opcode)
 
     def JMP(self, opcode):
         #***** JMP - Jump *****
@@ -384,11 +496,15 @@ class CPU:
             return 0
         elif opcode == 0x6C:  # Indirect, 3, 5
             return 0
+        else:
+            return self.invalid_instruction(opcode)
 
     def JSR(self, opcode):
         #***** JSR - Jump to Subroutine *****
         if opcode == 0x20:  # Absolute, 3, 6
             return 0
+        else:
+            return self.invalid_instruction(opcode)
 
     def LDA(self, opcode):
         #***** LDA - Load Accumulator *****
@@ -408,6 +524,8 @@ class CPU:
             return 0
         elif opcode == 0xB1:  # Indirect Y, 2, 5 (+1 if page crossed)
             return 0
+        else:
+            return self.invalid_instruction(opcode)
 
     def LDX(self, opcode):
         #***** LDX - Load X Register *****
@@ -421,6 +539,8 @@ class CPU:
             return 0
         elif opcode == 0xBE:  # Absolute X, 3, 4 (+1 if page crossed)
             return 0
+        else:
+            return self.invalid_instruction(opcode)
 
     def LDY(self, opcode):
         #***** LDY - Load Y Register *****
@@ -434,6 +554,8 @@ class CPU:
             return 0
         elif opcode == 0xBC:  # Absolute X, 3, 4 (+1 if page crossed)
             return 0
+        else:
+            return self.invalid_instruction(opcode)
 
     def LSR(self, opcode):
         # ***** LSR - Logical Shift Right *****
@@ -447,11 +569,15 @@ class CPU:
             return 0
         elif opcode == 0x5E:  # Absolute X, 3, 7
             return 0
+        else:
+            return self.invalid_instruction(opcode)
 
     def NOP(self, opcode):
         # ***** NOP - No Operation *****
         if opcode == 0xEA:  # Implied, 1, 2
             return 0
+        else:
+            return self.invalid_instruction(opcode)
 
     def ORA(self, opcode):
         #***** ORA - Logical Inclusive OR *****
@@ -471,26 +597,36 @@ class CPU:
             return 0
         elif opcode == 0x11:  # Indirect Y, 2, 5 (+1 if page crossed)
             return 0
+        else:
+            return self.invalid_instruction(opcode)
 
     def PHA(self, opcode):
         #***** PHA - Push Accumulator *****
         if opcode == 0x48:  # Implied, 1, 3
             return 0
+        else:
+            return self.invalid_instruction(opcode)
 
     def PHP(self, opcode):
         #***** PHP - Push Processor Status *****
         if opcode == 0x08:  # Implied, 1, 3
             return 0
+        else:
+            return self.invalid_instruction(opcode)
 
     def PLA(self, opcode):
         #***** PLA - Pull Accumulator *****
         if opcode == 0x68:  # Implied, 1, 4
             return 0
+        else:
+            return self.invalid_instruction(opcode)
 
     def PLP(self, opcode):
         #***** PLP - Pull Processor Status *****
         if opcode == 0x28:  # Implied, 1, 4
             return 0
+        else:
+            return self.invalid_instruction(opcode)
 
     def ROL(self, opcode):
         #***** ROL - Rotate Left *****
@@ -504,6 +640,8 @@ class CPU:
             return 0
         elif opcode == 0x3E:  # Absolute X, 3, 7
             return 0
+        else:
+            return self.invalid_instruction(opcode)
 
     def ROR(self, opcode):
         #***** ROR - Rotate Right *****
@@ -517,16 +655,22 @@ class CPU:
             return 0
         elif opcode == 0x7E:  # Absolute X, 3, 7
             return 0
+        else:
+            return self.invalid_instruction(opcode)
 
     def RTI(self, opcode):
         #***** RTI - Return from Interrupt *****
         if opcode == 0x40:  # Implied, 1, 6
             return 0
+        else:
+            return self.invalid_instruction(opcode)
 
     def RTS(self, opcode):
         #***** RTS - Return from Subroutine *****
         if opcode == 0x60:  # Implied, 1, 6
             return 0
+        else:
+            return self.invalid_instruction(opcode)
 
     def SBC(self, opcode):
         #***** SBC - Subtract with Carry *****
@@ -546,16 +690,22 @@ class CPU:
             return 0
         elif opcode == 0xF1:  # Indirect Y, 2, 5 (+1 if page crossed)
             return 0
+        else:
+            return self.invalid_instruction(opcode)
 
     def SEC(self, opcode):
         #***** SEC - Set Carry Flag *****
         if opcode == 0x38:  # Implied, 1, 2
             return 0
+        else:
+            return self.invalid_instruction(opcode)
 
     def SED(self, opcode):
         #***** SED - Set Decimal Flag *****
         if opcode == 0xF8:  # Implied, 1, 2
             return 0
+        else:
+            return self.invalid_instruction(opcode)
 
     def SEI(self, opcode):
         #***** SEI - Set Interrupt Disable *****
@@ -563,6 +713,8 @@ class CPU:
             self.set_I(1)
             self.PC += 1
             return 0
+        else:
+            return self.invalid_instruction(opcode)
 
     def STA(self, opcode):
         #***** STA - Store Accumulator *****
@@ -580,6 +732,8 @@ class CPU:
             return 0
         elif opcode == 0x91:  # Indirect Y, 2, 6
             return 0
+        else:
+            return self.invalid_instruction(opcode)
 
     def STX(self, opcode):
         #***** STX - Store X Register *****
@@ -589,6 +743,8 @@ class CPU:
             return 0
         elif opcode == 0x8E:  # Absolute, 3, 4
             return 0
+        else:
+            return self.invalid_instruction(opcode)
 
     def STY(self, opcode):
         #***** STY - Store Y Register *****
@@ -598,47 +754,80 @@ class CPU:
             return 0
         elif opcode == 0x8C:  # Absolute, 3, 4
             return 0
+        else:
+            return self.invalid_instruction(opcode)
 
     def TAX(self, opcode):
         #***** TAX - Transfer Accumulator to X *****
         if opcode == 0xAA:  # Implied, 1, 2
             return 0
+        else:
+            return self.invalid_instruction(opcode)
 
     def TAY(self, opcode):
         #***** TAY - Transfer Accumulator to Y *****
         if opcode == 0xA8:  # Implied, 1, 2
             return 0
+        else:
+            return self.invalid_instruction(opcode)
 
     def TSX(self, opcode):
         #***** TSX - Transfer Stack Pointer to X *****
         if opcode == 0xBA:  # Implied, 1, 2
             return 0
+        else:
+            return self.invalid_instruction(opcode)
 
     def TXA(self, opcode):
         #***** TXA - Transfer X to Accumulator *****
         if opcode == 0x8A:  # Implied, 1, 2
             return 0
+        else:
+            return self.invalid_instruction(opcode)
 
     def TXS(self, opcode):
         #***** TXS - Transfer X to Stack Pointer *****
         if opcode == 0x9A:  # Implied, 1, 2
             return 0
+        else:
+            return self.invalid_instruction(opcode)
 
     def TYA(self, opcode):
         #***** TYA - Transfer Y to Accumulator *****
         if opcode == 0x98:  # Implied, 1, 2
             return 0
-
+        else:
+            return self.invalid_instruction(opcode)
 
     def invalid_instruction(self, opcode):
+        print("ERROR: " + opcode)
         raise Exception
 
+    def C(self):
+        return self.get_bit_P(0)
+
+    def Z(self):
+        return self.get_bit_P(1)
+
+    def I(self):
+        return self.get_bit_P(2)
+
+    def D(self):
+        return self.get_bit_P(3)
+
+    def B(self):
+        return self.get_bit_P(4)
+
+    def V(self):
+        return self.get_bit_P(5)
+
+    def N(self):
+        return self.get_bit_P(6)
 
     def set_C(self, bit):
         self.set_bit_P(0, bit)
 
-    def set_Z(self, reg):
-        bit = not reg
+    def set_Z(self, bit):
         self.set_bit_P(1, bit)
 
     def set_I(self, bit):
@@ -653,26 +842,24 @@ class CPU:
     def set_V(self, bit):
         self.set_bit_P(5, bit)
 
-    def set_N(self, reg):
-        bit = reg >> 7
+    def set_N(self, bit):
         self.set_bit_P(6, bit)
-
 
     def set_bit_P(self, pos, bit):
         mask = ~(1 << pos)
         self.P = self.P & mask | (bit << pos)
 
+    def get_bit_P(self, pos):
+        return self.get_bit(self.P, pos)
 
     def get_bit(self, target, pos):
         return (target >> pos) & 0b1
-
 
     def convert_8bit_twos(self, num):
         if (num & (1 << 7)):
             return -((num ^ 0xFF) + 1)
         else:
             return num
-
 
     # Prints contents of registers
     def _cpu_dump(self) -> str:
