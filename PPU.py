@@ -8,8 +8,6 @@ class PPU:
         self.cpu_ram = cpu_ram
         self.ram = ppu_ram
 
-    
-
         
 """A nametable is the data structure for a background."""
 class Nametable:
