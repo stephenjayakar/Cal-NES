@@ -10,4 +10,4 @@ class RAM:
 
     # Read from start to length in bytes
     def mem_get(self, offset: int, length: int) -> bytes:
-        return self.memory[offset:offset + length]
+        return bytes(self.memory[offset:offset + length])
