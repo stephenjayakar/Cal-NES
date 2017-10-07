@@ -16,6 +16,9 @@ class NES:
         # Instructions start at 0x8000 / prg_rom
         self.ram.mem_set(0x8000, bytearray(self.rom.prg_rom))
         
+        # Only runs one instruction
+        self.cpu.run_instruction(self.ram)
+        
 
 if __name__ == "__main__":
     n = NES("smb.nes")
