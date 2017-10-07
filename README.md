@@ -1,3 +1,15 @@
 # Cal-NES
+An NES Emulator created during Calhacks 4.0
 
-Send help this project is hard
+# Features
+- ROM Load
+- Emulated 6502 CPU
+
+# Team Members
+Michelle Cheung
+
+Stephen Jayakar
+
+David Vendrow
+
+Alex Yang
