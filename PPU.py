@@ -1,9 +1,18 @@
-class PPU:
-    def __init__(self):
-        print("Picture Processing Unit")
+from RAM import RAM
 
+
+class PPU:
+    cpu_ram = None
+    ram = None
+    def __init__(self, cpu_ram: RAM, ppu_ram: RAM):
+        self.cpu_ram = cpu_ram
+        self.ram = ppu_ram
+
+    
+
+        
 """A nametable is the data structure for a background."""
-class nametable:
+class Nametable:
     def __init__(self, grid):
         self.grid = grid
         self.width, self.height = len(grid[0]), len(grid)
