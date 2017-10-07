@@ -31,4 +31,5 @@ class NES:
 
 if __name__ == "__main__":
     n = NES("smb.nes")
+    n.ppu.draw_pattern()
     print("Done")
