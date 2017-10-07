@@ -93,6 +93,15 @@ class CPU:
         self.PC += 1
         return byte
 
+    def get_zero_page_addr(self, offset=0):
+        return self.get_PC_byte() + offset
+
+    def get_zero_page_addr_x(self):
+        return self.get_zero_page_addr(self.reg["x"])
+
+    def get_zero_page_addr_y(self):
+        return self.get_zero_page_addr(self.reg["y"])
+
     def get_zero_page(self, offset=0):
         addr = self.get_PC_byte() + offset
         mem_byte = self.get_mem(addr)
@@ -103,6 +112,17 @@ class CPU:
 
     def get_zero_page_y(self):
         return self.get_zero_page(self.reg["y"])
+
+    def get_absolute_addr(self, offset=0):
+        lower = self.get_PC_byte()
+        upper = self.get_PC_byte()
+        return (upper << 8 | lower) + offset
+
+    def get_absolute_addr_x(self):
+        return self.get_absolute_addr(self.reg["x"])
+
+    def get_absolute_addr_y(self):
+        return self.get_absolute_addr(self.reg["y"])
 
     def get_absolute(self, offset=0):
         lower = self.get_PC_byte()
@@ -204,16 +224,27 @@ class CPU:
 
     def ASL(self, opcode):
         #***** ASL - Arithmetic Shift Left: *****"""
+        result = 0
+
         if opcode == 0x0A: #Accumulator, 1, 2
-            return 0
-        elif opcode == 0x06: #Zero Page, 2, 5
-            return 0
-        elif opcode == 0x16: #Zero Page,X, 2, 6
-            return 0
-        elif opcode == 0x0E: #Absolute, 3, 6
-            return 0
-        elif opcode == 0x1E: #Absolute,X, 3, 7
-            return 0
+            operand = self.A
+            result = (self.A << 1) & 0xFF
+            self.A = result
+
+        else:
+            if opcode == 0x06: #Zero Page, 2, 5
+                addr = self.get_zero_page_addr()
+            elif opcode == 0x16: #Zero Page,X, 2, 6
+                addr = self.get_zero_page_addr_x()
+            elif opcode == 0x0E: #Absolute, 3, 6
+                addr = self.get_absolute_addr()
+            elif opcode == 0x1E: #Absolute,X, 3, 7
+                addr = self.get_absolute_addr_x()
+            operand = self.get_mem(addr)
+
+        self.set_C(operand >> 7)
+        self.update_Z(self.A)
+        self.update_N(result)
 
     def BCC(self, opcode):
         #***** BCC - Branch if Carry Clear *****
@@ -768,60 +799,51 @@ class CPU:
         else:
             return self.invalid_instruction(opcode)
 
-
     def invalid_instruction(self, opcode):
         print("ERROR: " + opcode)
         raise Exception
 
     def C(self):
         return self.get_bit_P(0)
+
     def Z(self):
         return self.get_bit_P(1)
+
     def I(self):
         return self.get_bit_P(2)
+
     def D(self):
         return self.get_bit_P(3)
+
     def B(self):
         return self.get_bit_P(4)
+
     def V(self):
         return self.get_bit_P(5)
+
     def N(self):
         return self.get_bit_P(6)
 
     def set_C(self, bit):
         self.set_bit_P(0, bit)
+
     def set_Z(self, bit):
         self.set_bit_P(1, bit)
+
     def set_I(self, bit):
         self.set_bit_P(2, bit)
+
     def set_D(self, bit):
         self.set_bit_P(3, bit)
+
     def set_B(self, bit):
         self.set_bit_P(4, bit)
+
     def set_V(self, bit):
         self.set_bit_P(5, bit)
+
     def set_N(self, bit):
         self.set_bit_P(6, bit)
-
-    def update_C(self, reg):
-        bit = reg >> 8
-        self.C = bit
-    def update_Z(self, reg):
-        bit = not reg
-        self.set_bit_P(1, bit)
-    def update_I(self, bit):
-        pass
-    def update_D(self, bit):
-        pass
-    def update_B(self, bit):
-        pass
-    def update_V(self, bit):
-        pass
-
-    def update_N(self, reg):
-        bit = reg >> 7
-        self.set_bit_P(6, bit)
-
 
     def set_bit_P(self, pos, bit):
         mask = ~(1 << pos)
@@ -833,13 +855,11 @@ class CPU:
     def get_bit(self, target, pos):
         return (target >> pos) & 0b1
 
-
     def convert_8bit_twos(self, num):
         if (num & (1 << 7)):
             return -((num ^ 0xFF) + 1)
         else:
             return num
-
 
     # Prints contents of registers
     def _cpu_dump(self) -> str:
