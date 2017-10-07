@@ -1,8 +1,10 @@
 class CPU:
+    # Random Access Memory
+    ram = 0
     # Program Counter
     PC = 0
     # Processor Status
-    P = 0
+    P = 0b0
     # Stack Pointer ($0100-$01FF)
     SP = 0
     
@@ -11,14 +13,22 @@ class CPU:
            "X": 0,
            "Y": 0}
     
-    def __init__(self, PC_START = 0x600):
+    def __init__(self, ram, PC_START = 0x8000):
         self.PC = PC_START
+        self.ram = ram
 
-    def run_instruction(self, instruction: bytes) -> bool:
-        return False
+    def run_instruction(self):
+        opcode = self.get_byte()
+        self.evaluate_opcode(opcode)
+        print(self.P)
+
+    def get_byte(self):
+        return self.ram.mem_get(self.PC, 1)
 
     def evaluate_opcode(self, opcode: bytes):
         # ***** ADC(ADd with Carry) *****
+        opcode = opcode[0]
+
         if opcode == 0x69: #Immediate, 2, 2
             return 0
         elif opcode == 0x65: #Zero Page, 2, 3
@@ -39,7 +49,19 @@ class CPU:
 
         #***** AND - Logical AND *****
         elif opcode == 0x29: #Immediate, 2, 2
-            return 0
+            #get imm
+            self.PC += 1
+            imm = self.get_byte()
+
+            #operation AND
+            self.reg["A"] &= imm
+
+            #update processor status
+            self.set_Z(self.reg["A"] == 0)
+            self.set_N(self.get_bit(self.reg["A"], 7))
+
+            self.PC += 1
+
         elif opcode == 0x25: #Zero Page, 2, 3
             return 0
         elif opcode == 0x35: #Zero Page,X, 2, 4
@@ -419,6 +441,8 @@ class CPU:
 
         #***** SEI - Set Interrupt Disable *****
         elif opcode == 0x78:  # Implied, 1, 2
+            self.set_I(1)
+            self.PC += 1
             return 0
 
 
@@ -487,9 +511,36 @@ class CPU:
             return 0
 
 
-    # Load immediate -> register
-    def _ld_immediate(self, register: str, immediate: int):
-        self.reg[register] = immediate
+
+    def set_C(self, bit):
+        self.set_bit_P(0, bit)
+
+    def set_Z(self, bit):
+        self.set_bit_P(1, bit)
+
+    def set_I(self, bit):
+        self.set_bit_P(2, bit)
+
+    def set_D(self, bit):
+        self.set_bit_P(3, bit)
+
+    def set_B(self, bit):
+        self.set_bit_P(4, bit)
+
+    def set_V(self, bit):
+        self.set_bit_P(5, bit)
+
+    def set_N(self, bit):
+        self.set_bit_P(6, bit)
+
+
+    def set_bit_P(self, pos, bit):
+        mask = ~(1 << pos)
+        self.P = self.P & mask | (bit << pos)
+
+    def get_bit(self, target, pos):
+        return (target >> pos) & 0b1
+
 
     # Prints contents of registers
     def _cpu_dump(self) -> str:
