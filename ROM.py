@@ -47,7 +47,6 @@ class ROM:
             # The chr rom data
             self.chr_rom = self.FILE.read(8 * 1024 * self.chr_rom_size)
 
-            # Now, we need to flush to RAM
         
         except Exception as e:
             print("Invalid ROM")
