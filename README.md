@@ -7,6 +7,9 @@ An NES Emulator created during Calhacks 4.0
 
 # Team Members
 Michelle Cheung
+
 Stephen Jayakar
+
 David Vendrow
+
 Alex Yang
