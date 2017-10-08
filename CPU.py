@@ -146,14 +146,18 @@ class CPU:
         addr = self.PC + offset
         return addr
 
-    def get_indirect(self):
-        """
-        lower = self.get_PC_byte()
-        upper = self.get_PC_byte()
-        addr = (upper << 8 | lower)
-        """
-        return self.invalid_instruction(0)
+    def get_indirect(self, offset=0):
+        addr = self.get_absolute_addr(offset)
+        lower = self.get_mem(addr)
+        upper = self.get_mem(addr + 1)
+        real_addr = (upper << 8) + lower
+        return self.get_mem(real_addr)
 
+    def get_indirect_x(self):
+        return self.get_indirect(self.X)
+
+    def get_indirect_y(self):
+        return self.get_indirect(self.Y)
 
     def run_instruction(self):
         opcode = self.get_PC_byte()
@@ -176,9 +180,9 @@ class CPU:
         elif opcode == 0x79: #Absolute,Y, 3, 4
             operand = self.get_absolute_y()
         elif opcode == 0x61: #(Indirect,X) 2, 6
-            return self.invalid_instruction(opcode)
+            operand = self.get_indirect_x()
         elif opcode == 0x71: #(Indirect,Y) 2, 5
-            return self.invalid_instruction(opcode)
+            operand = self.get_indirect_y()
         else:
             return self.invalid_instruction(opcode)
 
@@ -194,28 +198,20 @@ class CPU:
         #***** AND - Logical AND *****
         if opcode == 0x29: #Immediate, 2, 2
             self.A = self.A & self.get_PC_byte()
-
         elif opcode == 0x25: #Zero Page, 2, 3
             self.A = self.A & self.get_zero_page()
-
         elif opcode == 0x35: #Zero Page,X, 2, 4
             self.A = self.A & self.get_zero_page_x()
-
         elif opcode == 0x2D: #Absolute, 3, 4
             self.A = self.A & self.get_absolute()
-
         elif opcode == 0x3D: #Absolute,X, 3, 4
             self.A = self.A & self.get_absolute_x()
-
         elif opcode == 0x39: #Absolute,Y, 3, 4
             self.A = self.A & self.get_absolute_y()
-
         elif opcode == 0x21: #(Indirect,X) 2, 6
-            return self.invalid_instruction(opcode)
-
+            self.A = self.A & self.get_indirect_x()
         elif opcode == 0x31: #(Indirect,Y) 2, 5
-            return self.invalid_instruction(opcode)
-
+            self.A = self.A & self.get_indirect_y()
         else:
             return self.invalid_instruction(opcode)
 
@@ -231,7 +227,6 @@ class CPU:
             self.A = result
 
         else:
-            addr = 0
             if opcode == 0x06: #Zero Page, 2, 5
                 addr = self.get_zero_page_addr()
             elif opcode == 0x16: #Zero Page,X, 2, 6
@@ -325,7 +320,7 @@ class CPU:
         if opcode == 0x00:  #Implied, 1, 7
             # Push PC and P on stack
             self.SP -= 3
-            bytes_to_stack = bytearray([self.PC & 0xFF, self.PC >> 8, self.P])
+            bytes_to_stack = bytearray([self.P, self.PC & 0xFF, self.PC >> 8])
             self.ram.mem_set(self.SP, bytes_to_stack)
 
             # Set PC as IRQ vector
@@ -399,9 +394,9 @@ class CPU:
         elif opcode == 0xD9: #Absolute,Y, 3, 4
             operand = self.get_absolute_y()
         elif opcode == 0xC1: #(Indirect,X), 2, 6
-            return self.invalid_instruction(opcode)
+            operand = self.get_indirect_x()
         elif opcode == 0xD1: #(Indirect),Y, 2, 5
-            return self.invalid_instruction(opcode)
+            operand = self.get_indirect_y()
         else:
             return self.invalid_instruction(opcode)
 
@@ -494,9 +489,9 @@ class CPU:
         elif opcode == 0x59:  # Absolute Y, 3, 4 (+1 if page crossed)
             self.A = self.A ^ self.get_absolute_y()
         elif opcode == 0x41:  # Indirect X, 2, 6
-            return self.invalid_instruction(opcode)
+            self.A = self.A ^ self.get_indirect_x()
         elif opcode == 0x51:  # Indirect Y, 2, 5 (+1 if page crossed)
-            return self.invalid_instruction(opcode)
+            self.A = self.A ^ self.get_indirect_y()
         else:
             return self.invalid_instruction(opcode)
 
@@ -542,16 +537,20 @@ class CPU:
     def JMP(self, opcode):
         #***** JMP - Jump *****
         if opcode == 0x4C:  # Absolute, 3, 3
-            return 0
+            self.PC = self.get_absolute()
         elif opcode == 0x6C:  # Indirect, 3, 5
-            return 0
+            self.PC = self.get_indirect()
         else:
             return self.invalid_instruction(opcode)
 
     def JSR(self, opcode):
         #***** JSR - Jump to Subroutine *****
         if opcode == 0x20:  # Absolute, 3, 6
-            return 0
+            jump_addr = self.get_absolute_addr()
+            self.SP -= 2
+            bytes_to_load = bytearray([self.PC & 0xFF, self.PC >> 8])
+            self.ram.mem_set(self.SP, bytes_to_load)
+            self.PC = jump_addr
         else:
             return self.invalid_instruction(opcode)
 
@@ -617,53 +616,69 @@ class CPU:
 
     def LSR(self, opcode):
         # ***** LSR - Logical Shift Right *****
-        if opcode == 0x4A:  # Accumulator, 1, 2
-            return 0
-        elif opcode == 0x46:  # Zero Page, 2, 5
-            return 0
-        elif opcode == 0x56:  # Zero Page X, 2, 6
-            return 0
-        elif opcode == 0x4E:  # Absolute, 3, 6
-            return 0
-        elif opcode == 0x5E:  # Absolute X, 3, 7
-            return 0
+        if opcode == 0x4A: #Accumulator, 1, 2
+            operand = self.A
+            result = self.A >> 1
+            self.A = result
+
         else:
-            return self.invalid_instruction(opcode)
+            if opcode == 0x46: #Zero Page, 2, 5
+                addr = self.get_zero_page_addr()
+            elif opcode == 0x56: #Zero Page,X, 2, 6
+                addr = self.get_zero_page_addr_x()
+            elif opcode == 0x4E: #Absolute, 3, 6
+                addr = self.get_absolute_addr()
+            elif opcode == 0x5E: #Absolute,X, 3, 7
+                addr = self.get_absolute_addr_x()
+            else:
+                return self.invalid_instruction(opcode)
+
+            operand = self.get_mem(addr)
+            result = operand >> 1
+            self.set_mem(addr, result)
+
+        self.set_C(operand & 0b1)
+        self.set_Z(result == 0)
+        self.set_N(result >> 7)
+
 
     def NOP(self, opcode):
         # ***** NOP - No Operation *****
         if opcode == 0xEA:  # Implied, 1, 2
-            return 0
+            pass
         else:
             return self.invalid_instruction(opcode)
 
     def ORA(self, opcode):
         #***** ORA - Logical Inclusive OR *****
         if opcode == 0x09:  # Immediate, 2, 2
-            return 0
+            operand = self.get_PC_byte()
         elif opcode == 0x05:  # Zero Page, 2, 3
-            return 0
+            operand = self.get_zero_page()
         elif opcode == 0x15:  # Zero Page X, 2, 4
-            return 0
+            operand = self.get_zero_page_x()
         elif opcode == 0x0D:  # Absolute, 3, 4
-            return 0
+            operand = self.get_absolute()
         elif opcode == 0x1D:  # Absolute X, 3, 4 (+1 if page crossed)
-            return 0
+            operand = self.get_absolute_x()
         elif opcode == 0x19:  # Absolute Y, 3, 4 (+1 if page crossed)
-            return 0
+            operand = self.get_absolute_y()
         elif opcode == 0x01:  # Indirect X, 2, 6
-            return 0
+            operand = self.get_indirect_x()
         elif opcode == 0x11:  # Indirect Y, 2, 5 (+1 if page crossed)
-            return 0
+            operand = self.get_indirect_y()
         else:
             return self.invalid_instruction(opcode)
+
+        self.A = self.A | operand
+        self.set_Z(self.A == 0)
+        self.set_N(self.A >> 7)
 
     def PHA(self, opcode):
         #***** PHA - Push Accumulator *****
         if opcode == 0x48:  # Implied, 1, 3
             self.SP -= 1
-            byte_to_load = bytearray([self.A])
-            self.set_mem(self.SP, byte_to_load)
+            self.set_mem(self.SP, self.A)
         else:
             return self.invalid_instruction(opcode)
 
@@ -671,66 +686,100 @@ class CPU:
         #***** PHP - Push Processor Status *****
         if opcode == 0x08:  # Implied, 1, 3
             self.SP -= 1
-            byte_to_load = bytearray([self.P])
-            self.set_mem(self.SP, byte_to_load)
+            self.set_mem(self.SP, self.P)
         else:
             return self.invalid_instruction(opcode)
 
     def PLA(self, opcode):
         #***** PLA - Pull Accumulator *****
         if opcode == 0x68:  # Implied, 1, 4
-            return 0
+            self.A = self.get_mem(self.SP)
+            self.SP += 1
+            self.set_Z(self.A == 0)
+            self.set_N(self.A >> 7)
         else:
             return self.invalid_instruction(opcode)
 
     def PLP(self, opcode):
         #***** PLP - Pull Processor Status *****
         if opcode == 0x28:  # Implied, 1, 4
-            return 0
+            self.P = self.get_mem(self.SP)
+            self.SP += 1
         else:
             return self.invalid_instruction(opcode)
 
     def ROL(self, opcode):
         #***** ROL - Rotate Left *****
         if opcode == 0x2A:  # Accumulator, 1, 2
-            return 0
-        elif opcode == 0x26:  # Zero Page, 2, 5
-            return 0
-        elif opcode == 0x36:  # Zero Page X, 2, 6
-            return 0
-        elif opcode == 0x2E:  # Absolute, 3, 6
-            return 0
-        elif opcode == 0x3E:  # Absolute X, 3, 7
-            return 0
+            operand = self.A
+            result = (operand << 1) | self.C()
+            self.A = result
         else:
-            return self.invalid_instruction(opcode)
+            if opcode == 0x26:  # Zero Page, 2, 5
+                addr = self.get_zero_page_addr()
+            elif opcode == 0x36:  # Zero Page X, 2, 6
+                addr = self.get_zero_page_addr_x()
+            elif opcode == 0x2E:  # Absolute, 3, 6
+                addr = self.get_absolute_addr()
+            elif opcode == 0x3E:  # Absolute X, 3, 7
+                addr = self.get_absolute_addr_x()
+            else:
+                return self.invalid_instruction(opcode)
+
+            operand = self.get_mem(addr)
+            result = (operand << 1) | self.C()
+            self.set_mem(addr, result)
+
+        self.set_C(operand >> 7)
+        self.set_Z(self.A == 0)
+        self.set_N(result >> 7)
 
     def ROR(self, opcode):
         #***** ROR - Rotate Right *****
         if opcode == 0x6A:  # Accumulator, 1, 2
-            return 0
-        elif opcode == 0x66:  # Zero Page, 2, 5
-            return 0
-        elif opcode == 0x76:  # Zero Page X, 2, 6
-            return 0
-        elif opcode == 0x6E:  # Absolute, 3, 6
-            return 0
-        elif opcode == 0x7E:  # Absolute X, 3, 7
-            return 0
+            operand = self.A
+            result = (operand >> 1) | (self.C() << 7)
+            self.A = result
         else:
-            return self.invalid_instruction(opcode)
+            if opcode == 0x66:  # Zero Page, 2, 5
+                addr = self.get_zero_page_addr()
+            elif opcode == 0x76:  # Zero Page X, 2, 6
+                addr = self.get_zero_page_addr_x()
+            elif opcode == 0x6E:  # Absolute, 3, 6
+                addr = self.get_absolute_addr()
+            elif opcode == 0x7E:  # Absolute X, 3, 7
+                addr = self.get_absolute_addr_x()
+            else:
+                return self.invalid_instruction(opcode)
+
+            operand = self.get_mem(addr)
+            result = (operand >> 1) | (self.C() << 7)
+            self.set_mem(addr, result)
+
+        self.set_C(operand & 0b1)
+        self.set_Z(self.A == 0)
+        self.set_N(result >> 7)
 
     def RTI(self, opcode):
         #***** RTI - Return from Interrupt *****
         if opcode == 0x40:  # Implied, 1, 6
-            return 0
+            loaded = self.ram.mem_get(self.SP, 3)
+            self.P = loaded[0]
+            lower = loaded[1]
+            upper = loaded[2]
+            self.PC = (upper << 8) | lower
+            self.SP += 3
         else:
             return self.invalid_instruction(opcode)
 
     def RTS(self, opcode):
         #***** RTS - Return from Subroutine *****
         if opcode == 0x60:  # Implied, 1, 6
-            return 0
+            loaded = self.ram.mem_get(self.SP, 2)
+            lower = loaded[0]
+            upper = loaded[1]
+            self.PC = (upper << 8) | lower
+            self.SP += 2
         else:
             return self.invalid_instruction(opcode)
 
