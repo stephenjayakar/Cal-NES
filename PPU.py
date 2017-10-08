@@ -1,6 +1,5 @@
 from RAM import RAM
 from Display import Display
-import threading
 
 class PPU():
     cpu_ram = None
@@ -14,11 +13,13 @@ class PPU():
         self.display = Display()
 
     def tick(self):
-        name = self.ram.mem_get(0x2000, 16)
-        attribute = self.ram.mem_get(0x23c0, 16)
-
+        PPU_CTRL = self.cpu_mem.get(0x2000, 8)
+        ppu_ctrl_r1, ppu_ctrl_r2, ppu_status, ppu_spr_addr, ppu_spr_data, ppu_scroll_reg, ppu_address, ppu_data = PPU_CTRL
+        print(PPU_CTRL)
+        
+        
     def draw_pattern(self, offset: int):
-        tile1 = combine_planes(self.ram.mem_get(offset, 16))
+        tile1 = combine_planes(self.ram.mem_get(offset, 64))
         # tile2 = combine_planes(self.ram.mem_get(16, 16))
         # tile3 = combine_planes(self.ram.mem_get(32, 16))
         # tile4 = combine_planes(self.ram.mem_get(48, 16))
