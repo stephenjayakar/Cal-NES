@@ -97,6 +97,7 @@ class CPU:
         self.PC += 1
         return byte
 
+
     def get_zero_page_addr(self, offset=0):
         return self.get_PC_byte() + offset
 
@@ -105,6 +106,7 @@ class CPU:
 
     def get_zero_page_addr_y(self):
         return self.get_zero_page_addr(self.Y)
+
 
     def get_zero_page(self, offset=0):
         addr = self.get_PC_byte() + offset
@@ -117,6 +119,7 @@ class CPU:
     def get_zero_page_y(self):
         return self.get_zero_page(self.Y)
 
+
     def get_absolute_addr(self, offset=0):
         lower = self.get_PC_byte()
         upper = self.get_PC_byte()
@@ -127,6 +130,7 @@ class CPU:
 
     def get_absolute_addr_y(self):
         return self.get_absolute_addr(self.Y)
+
 
     def get_absolute(self, offset=0):
         lower = self.get_PC_byte()
@@ -141,18 +145,39 @@ class CPU:
     def get_absolute_y(self):
         return self.get_absolute(self.Y)
 
+
     def get_relative_addr(self):
         offset = self.convert_8bit_twos(self.get_PC_byte())
         addr = self.PC + offset
         return addr
 
-    def get_indirect(self):
-        """
-        lower = self.get_PC_byte()
-        upper = self.get_PC_byte()
-        addr = (upper << 8 | lower)
-        """
-        return self.invalid_instruction(0)
+
+    def get_indirect_addr(self, offset=0):
+        addr = self.get_absolute_addr(offset)
+        lower = self.get_mem(addr)
+        upper = self.get_mem(addr + 1)
+        real_addr = (upper << 8) + lower
+        return real_addr
+
+    def get_indirect_addr_x(self):
+        return self.get_indirect_addr(self.X)
+
+    def get_indirect_addr_y(self):
+        return self.get_indirect_addr(self.Y)
+
+
+    def get_indirect(self, offset=0):
+        addr = self.get_absolute_addr(offset)
+        lower = self.get_mem(addr)
+        upper = self.get_mem(addr + 1)
+        real_addr = (upper << 8) + lower
+        return self.get_mem(real_addr)
+
+    def get_indirect_x(self):
+        return self.get_indirect(self.X)
+
+    def get_indirect_y(self):
+        return self.get_indirect(self.Y)
 
 
     def run_instruction(self):
@@ -176,9 +201,9 @@ class CPU:
         elif opcode == 0x79: #Absolute,Y, 3, 4
             operand = self.get_absolute_y()
         elif opcode == 0x61: #(Indirect,X) 2, 6
-            return self.invalid_instruction(opcode)
+            operand = self.get_indirect_x()
         elif opcode == 0x71: #(Indirect,Y) 2, 5
-            return self.invalid_instruction(opcode)
+            operand = self.get_indirect_y()
         else:
             return self.invalid_instruction(opcode)
 
@@ -194,28 +219,20 @@ class CPU:
         #***** AND - Logical AND *****
         if opcode == 0x29: #Immediate, 2, 2
             self.A = self.A & self.get_PC_byte()
-
         elif opcode == 0x25: #Zero Page, 2, 3
             self.A = self.A & self.get_zero_page()
-
         elif opcode == 0x35: #Zero Page,X, 2, 4
             self.A = self.A & self.get_zero_page_x()
-
         elif opcode == 0x2D: #Absolute, 3, 4
             self.A = self.A & self.get_absolute()
-
         elif opcode == 0x3D: #Absolute,X, 3, 4
             self.A = self.A & self.get_absolute_x()
-
         elif opcode == 0x39: #Absolute,Y, 3, 4
             self.A = self.A & self.get_absolute_y()
-
         elif opcode == 0x21: #(Indirect,X) 2, 6
-            return self.invalid_instruction(opcode)
-
+            self.A = self.A & self.get_indirect_x()
         elif opcode == 0x31: #(Indirect,Y) 2, 5
-            return self.invalid_instruction(opcode)
-
+            self.A = self.A & self.get_indirect_y()
         else:
             return self.invalid_instruction(opcode)
 
@@ -231,7 +248,6 @@ class CPU:
             self.A = result
 
         else:
-            addr = 0
             if opcode == 0x06: #Zero Page, 2, 5
                 addr = self.get_zero_page_addr()
             elif opcode == 0x16: #Zero Page,X, 2, 6
@@ -323,7 +339,18 @@ class CPU:
     def BRK(self, opcode):
         #***** BRK - Force Interrupt *****
         if opcode == 0x00:  #Implied, 1, 7
-            return self.invalid_instruction(opcode)
+            # Push PC and P on stack
+            self.SP -= 3
+            bytes_to_stack = bytearray([self.P, self.PC & 0xFF, self.PC >> 8])
+            self.ram.mem_set(self.SP, bytes_to_stack)
+
+            # Set PC as IRQ vector
+            lower = self.get_mem(0xFFFE)
+            upper = self.get_mem(0xFFFF)
+            self.PC = (upper << 8) | lower
+
+            # Set fag
+            self.set_B(1)
         else:
             return self.invalid_instruction(opcode)
 
@@ -388,9 +415,9 @@ class CPU:
         elif opcode == 0xD9: #Absolute,Y, 3, 4
             operand = self.get_absolute_y()
         elif opcode == 0xC1: #(Indirect,X), 2, 6
-            return self.invalid_instruction(opcode)
+            operand = self.get_indirect_x()
         elif opcode == 0xD1: #(Indirect),Y, 2, 5
-            return self.invalid_instruction(opcode)
+            operand = self.get_indirect_y()
         else:
             return self.invalid_instruction(opcode)
 
@@ -483,9 +510,9 @@ class CPU:
         elif opcode == 0x59:  # Absolute Y, 3, 4 (+1 if page crossed)
             self.A = self.A ^ self.get_absolute_y()
         elif opcode == 0x41:  # Indirect X, 2, 6
-            return self.invalid_instruction(opcode)
+            self.A = self.A ^ self.get_indirect_x()
         elif opcode == 0x51:  # Indirect Y, 2, 5 (+1 if page crossed)
-            return self.invalid_instruction(opcode)
+            self.A = self.A ^ self.get_indirect_y()
         else:
             return self.invalid_instruction(opcode)
 
@@ -531,217 +558,297 @@ class CPU:
     def JMP(self, opcode):
         #***** JMP - Jump *****
         if opcode == 0x4C:  # Absolute, 3, 3
-            return 0
+            self.PC = self.get_absolute()
         elif opcode == 0x6C:  # Indirect, 3, 5
-            return 0
+            self.PC = self.get_indirect()
         else:
             return self.invalid_instruction(opcode)
 
     def JSR(self, opcode):
         #***** JSR - Jump to Subroutine *****
         if opcode == 0x20:  # Absolute, 3, 6
-            return 0
+            jump_addr = self.get_absolute_addr()
+            self.SP -= 2
+            bytes_to_load = bytearray([self.PC & 0xFF, self.PC >> 8])
+            self.ram.mem_set(self.SP, bytes_to_load)
+            self.PC = jump_addr
         else:
             return self.invalid_instruction(opcode)
 
     def LDA(self, opcode):
         #***** LDA - Load Accumulator *****
         if opcode == 0xA9:  # Immediate, 2, 2
-            return 0
+            self.A = self.get_PC_byte()
         elif opcode == 0xA5:  # Zero Page, 2, 3
-            return 0
+            self.A = self.get_zero_page()
         elif opcode == 0xB5:  # Zero Page X, 2, 4
-            return 0
+            self.A = self.get_zero_page_x()
         elif opcode == 0xAD:  # Absolute, 3, 4
-            return 0
+            self.A = self.get_absolute()
         elif opcode == 0xBD:  # Absolute X, 3, 4 (+1 if page crossed)
-            return 0
+            self.A = self.get_absolute_x()
         elif opcode == 0xB9:  # Absolute Y, 3, 4 (+1 if page crossed)
-            return 0
+            self.A = self.get_absolute_y()
         elif opcode == 0xA1:  # Indirect X, 2, 6
-            return 0
+            return self.invalid_instruction(opcode)
         elif opcode == 0xB1:  # Indirect Y, 2, 5 (+1 if page crossed)
-            return 0
+            return self.invalid_instruction(opcode)
         else:
             return self.invalid_instruction(opcode)
+
+        self.set_Z(self.A == 0)
+        self.set_N(self.A >> 7)
 
     def LDX(self, opcode):
         #***** LDX - Load X Register *****
         if opcode == 0xA2:  # Immediate, 2, 2
-            return 0
+            self.X = self.get_PC_byte()
         elif opcode == 0xA6:  # Zero Page, 2, 3
-            return 0
+            self.X = self.get_zero_page()
         elif opcode == 0xB6:  # Zero Page X, 2, 4
-            return 0
+            self.X = self.get_zero_page_x()
         elif opcode == 0xAE:  # Absolute, 3, 4
-            return 0
+            self.X = self.get_absolute()
         elif opcode == 0xBE:  # Absolute X, 3, 4 (+1 if page crossed)
-            return 0
+            self.X = self.get_absolute_x()
         else:
             return self.invalid_instruction(opcode)
+
+        self.set_Z(self.X == 0)
+        self.set_N(self.X >> 7)
 
     def LDY(self, opcode):
         #***** LDY - Load Y Register *****
         if opcode == 0xA0:  # Immediate, 2, 2
-            return 0
+            self.Y = self.get_PC_byte()
         elif opcode == 0xA4:  # Zero Page, 2, 3
-            return 0
+            self.Y = self.get_zero_page()
         elif opcode == 0xB4:  # Zero Page X, 2, 4
-            return 0
+            self.Y = self.get_zero_page_x()
         elif opcode == 0xAC:  # Absolute, 3, 4
-            return 0
+            self.Y = self.get_absolute()
         elif opcode == 0xBC:  # Absolute X, 3, 4 (+1 if page crossed)
-            return 0
+            self.Y = self.get_absolute_x()
         else:
             return self.invalid_instruction(opcode)
 
+        self.set_Z(self.Y == 0)
+        self.set_N(self.Y >> 7)
+
     def LSR(self, opcode):
         # ***** LSR - Logical Shift Right *****
-        if opcode == 0x4A:  # Accumulator, 1, 2
-            return 0
-        elif opcode == 0x46:  # Zero Page, 2, 5
-            return 0
-        elif opcode == 0x56:  # Zero Page X, 2, 6
-            return 0
-        elif opcode == 0x4E:  # Absolute, 3, 6
-            return 0
-        elif opcode == 0x5E:  # Absolute X, 3, 7
-            return 0
+        if opcode == 0x4A: #Accumulator, 1, 2
+            operand = self.A
+            result = self.A >> 1
+            self.A = result
+
         else:
-            return self.invalid_instruction(opcode)
+            if opcode == 0x46: #Zero Page, 2, 5
+                addr = self.get_zero_page_addr()
+            elif opcode == 0x56: #Zero Page,X, 2, 6
+                addr = self.get_zero_page_addr_x()
+            elif opcode == 0x4E: #Absolute, 3, 6
+                addr = self.get_absolute_addr()
+            elif opcode == 0x5E: #Absolute,X, 3, 7
+                addr = self.get_absolute_addr_x()
+            else:
+                return self.invalid_instruction(opcode)
+
+            operand = self.get_mem(addr)
+            result = operand >> 1
+            self.set_mem(addr, result)
+
+        self.set_C(operand & 0b1)
+        self.set_Z(result == 0)
+        self.set_N(result >> 7)
+
 
     def NOP(self, opcode):
         # ***** NOP - No Operation *****
         if opcode == 0xEA:  # Implied, 1, 2
-            return 0
+            pass
         else:
             return self.invalid_instruction(opcode)
 
     def ORA(self, opcode):
         #***** ORA - Logical Inclusive OR *****
         if opcode == 0x09:  # Immediate, 2, 2
-            return 0
+            operand = self.get_PC_byte()
         elif opcode == 0x05:  # Zero Page, 2, 3
-            return 0
+            operand = self.get_zero_page()
         elif opcode == 0x15:  # Zero Page X, 2, 4
-            return 0
+            operand = self.get_zero_page_x()
         elif opcode == 0x0D:  # Absolute, 3, 4
-            return 0
+            operand = self.get_absolute()
         elif opcode == 0x1D:  # Absolute X, 3, 4 (+1 if page crossed)
-            return 0
+            operand = self.get_absolute_x()
         elif opcode == 0x19:  # Absolute Y, 3, 4 (+1 if page crossed)
-            return 0
+            operand = self.get_absolute_y()
         elif opcode == 0x01:  # Indirect X, 2, 6
-            return 0
+            operand = self.get_indirect_x()
         elif opcode == 0x11:  # Indirect Y, 2, 5 (+1 if page crossed)
-            return 0
+            operand = self.get_indirect_y()
         else:
             return self.invalid_instruction(opcode)
+
+        self.A = self.A | operand
+        self.set_Z(self.A == 0)
+        self.set_N(self.A >> 7)
 
     def PHA(self, opcode):
         #***** PHA - Push Accumulator *****
         if opcode == 0x48:  # Implied, 1, 3
-            return 0
+            self.SP -= 1
+            self.set_mem(self.SP, self.A)
         else:
             return self.invalid_instruction(opcode)
 
     def PHP(self, opcode):
         #***** PHP - Push Processor Status *****
         if opcode == 0x08:  # Implied, 1, 3
-            return 0
+            self.SP -= 1
+            self.set_mem(self.SP, self.P)
         else:
             return self.invalid_instruction(opcode)
 
     def PLA(self, opcode):
         #***** PLA - Pull Accumulator *****
         if opcode == 0x68:  # Implied, 1, 4
-            return 0
+            self.A = self.get_mem(self.SP)
+            self.SP += 1
+            self.set_Z(self.A == 0)
+            self.set_N(self.A >> 7)
         else:
             return self.invalid_instruction(opcode)
 
     def PLP(self, opcode):
         #***** PLP - Pull Processor Status *****
         if opcode == 0x28:  # Implied, 1, 4
-            return 0
+            self.P = self.get_mem(self.SP)
+            self.SP += 1
         else:
             return self.invalid_instruction(opcode)
 
     def ROL(self, opcode):
         #***** ROL - Rotate Left *****
         if opcode == 0x2A:  # Accumulator, 1, 2
-            return 0
-        elif opcode == 0x26:  # Zero Page, 2, 5
-            return 0
-        elif opcode == 0x36:  # Zero Page X, 2, 6
-            return 0
-        elif opcode == 0x2E:  # Absolute, 3, 6
-            return 0
-        elif opcode == 0x3E:  # Absolute X, 3, 7
-            return 0
+            operand = self.A
+            result = (operand << 1) | self.C()
+            self.A = result
         else:
-            return self.invalid_instruction(opcode)
+            if opcode == 0x26:  # Zero Page, 2, 5
+                addr = self.get_zero_page_addr()
+            elif opcode == 0x36:  # Zero Page X, 2, 6
+                addr = self.get_zero_page_addr_x()
+            elif opcode == 0x2E:  # Absolute, 3, 6
+                addr = self.get_absolute_addr()
+            elif opcode == 0x3E:  # Absolute X, 3, 7
+                addr = self.get_absolute_addr_x()
+            else:
+                return self.invalid_instruction(opcode)
+
+            operand = self.get_mem(addr)
+            result = (operand << 1) | self.C()
+            self.set_mem(addr, result)
+
+        self.set_C(operand >> 7)
+        self.set_Z(self.A == 0)
+        self.set_N(result >> 7)
 
     def ROR(self, opcode):
         #***** ROR - Rotate Right *****
         if opcode == 0x6A:  # Accumulator, 1, 2
-            return 0
-        elif opcode == 0x66:  # Zero Page, 2, 5
-            return 0
-        elif opcode == 0x76:  # Zero Page X, 2, 6
-            return 0
-        elif opcode == 0x6E:  # Absolute, 3, 6
-            return 0
-        elif opcode == 0x7E:  # Absolute X, 3, 7
-            return 0
+            operand = self.A
+            result = (operand >> 1) | (self.C() << 7)
+            self.A = result
         else:
-            return self.invalid_instruction(opcode)
+            if opcode == 0x66:  # Zero Page, 2, 5
+                addr = self.get_zero_page_addr()
+            elif opcode == 0x76:  # Zero Page X, 2, 6
+                addr = self.get_zero_page_addr_x()
+            elif opcode == 0x6E:  # Absolute, 3, 6
+                addr = self.get_absolute_addr()
+            elif opcode == 0x7E:  # Absolute X, 3, 7
+                addr = self.get_absolute_addr_x()
+            else:
+                return self.invalid_instruction(opcode)
+
+            operand = self.get_mem(addr)
+            result = (operand >> 1) | (self.C() << 7)
+            self.set_mem(addr, result)
+
+        self.set_C(operand & 0b1)
+        self.set_Z(self.A == 0)
+        self.set_N(result >> 7)
 
     def RTI(self, opcode):
         #***** RTI - Return from Interrupt *****
         if opcode == 0x40:  # Implied, 1, 6
-            return 0
+            loaded = self.ram.mem_get(self.SP, 3)
+            self.P = loaded[0]
+            lower = loaded[1]
+            upper = loaded[2]
+            self.PC = (upper << 8) | lower
+            self.SP += 3
         else:
             return self.invalid_instruction(opcode)
 
     def RTS(self, opcode):
         #***** RTS - Return from Subroutine *****
         if opcode == 0x60:  # Implied, 1, 6
-            return 0
+            loaded = self.ram.mem_get(self.SP, 2)
+            lower = loaded[0]
+            upper = loaded[1]
+            self.PC = (upper << 8) | lower
+            self.SP += 2
         else:
             return self.invalid_instruction(opcode)
 
     def SBC(self, opcode):
         #***** SBC - Subtract with Carry *****
         if opcode == 0xE9:  # Immediate, 2, 2
-            return 0
+            operand = self.get_PC_byte();
         elif opcode == 0xE5:  # Zero Page, 2, 3
-            return 0
+            operand = self.get_zero_page_x()
         elif opcode == 0xF5:  # Zero Page X, 2, 4
-            return 0
+            operand = self.get_zero_page_x()
         elif opcode == 0xED:  # Absolute, 3, 4
-            return 0
+            operand = self.get_absolute()
         elif opcode == 0xFD:  # Absolute X, 3, 4 (+1 if page crossed)
-            return 0
+            operand = self.get_absolute_x()
         elif opcode == 0xF9:  # Absolute Y, 3, 4 (+1 if page crossed)
-            return 0
+            operand = self.get_absolute_y()
         elif opcode == 0xE1:  # Indirect X, 2, 6
-            return 0
+            operand = self.get_indirect_x()
         elif opcode == 0xF1:  # Indirect Y, 2, 5 (+1 if page crossed)
-            return 0
+            operand = self.get_indirect_y()
         else:
             return self.invalid_instruction(opcode)
+
+        old_A = self.A
+        result = self.A - operand - (1 - self.C())
+        self.A = result & 0xFF
+
+        self.set_C(1 - (result >> 8))
+        self.set_Z(self.A == 0)
+        self.set_N(self.A >> 7)
+
+        if (old_A >> 7 != operand >> 7) and (self.A >> 7 != old_A >> 7):
+            self.set_V(1)
+        else:
+            self.set_V(0)
 
     def SEC(self, opcode):
         #***** SEC - Set Carry Flag *****
         if opcode == 0x38:  # Implied, 1, 2
-            return 0
+            self.set_C(1)
         else:
             return self.invalid_instruction(opcode)
 
     def SED(self, opcode):
         #***** SED - Set Decimal Flag *****
         if opcode == 0xF8:  # Implied, 1, 2
-            return 0
+            self.set_D(1)
         else:
             return self.invalid_instruction(opcode)
 
@@ -749,97 +856,113 @@ class CPU:
         #***** SEI - Set Interrupt Disable *****
         if opcode == 0x78:  # Implied, 1, 2
             self.set_I(1)
-            self.PC += 1
-            return 0
         else:
             return self.invalid_instruction(opcode)
 
     def STA(self, opcode):
         #***** STA - Store Accumulator *****
         if opcode == 0x85:  # Zero Page, 2, 3
-            return 0
+            addr = self.get_zero_page_addr()
         elif opcode == 0x95:  # Zero Page X, 2, 4
-            return 0
+            addr = self.get_zero_page_addr_x()
         elif opcode == 0x8D:  # Absolute, 3, 4
-            return 0
+            addr = self.get_absolute_addr()
         elif opcode == 0x9D:  # Absolute X, 3, 5
-            return 0
+            addr = self.get_absolute_addr_x()
         elif opcode == 0x99:  # Absolute Y, 3, 5
-            return 0
+            addr = self.get_absolute_addr_y()
         elif opcode == 0x81:  # Indirect X, 2, 6
-            return 0
+            addr = self.get_indirect_addr_x()
         elif opcode == 0x91:  # Indirect Y, 2, 6
-            return 0
+            addr = self.get_indirect_addr_y()
         else:
             return self.invalid_instruction(opcode)
+
+        self.set_mem(addr, self.A)
 
     def STX(self, opcode):
         #***** STX - Store X Register *****
         if opcode == 0x86:  # Zero Page, 2, 3
-            return 0
+            addr = self.get_zero_page_addr()
         elif opcode == 0x96:  # Zero Page Y, 2, 4
-            return 0
+            addr = self.get_zero_page_addr_y()
         elif opcode == 0x8E:  # Absolute, 3, 4
-            return 0
+            addr = self.get_absolute_addr()
         else:
             return self.invalid_instruction(opcode)
+
+        self.set_mem(addr, self.X)
 
     def STY(self, opcode):
         #***** STY - Store Y Register *****
         if opcode == 0x84:  # Zero Page, 2, 3
-            return 0
+            addr = self.get_zero_page_addr()
         elif opcode == 0x94:  # Zero Page X, 2, 4
-            return 0
+            addr = self.get_zero_page_addr_x()
         elif opcode == 0x8C:  # Absolute, 3, 4
-            return 0
+            addr = self.get_absolute_addr()
         else:
             return self.invalid_instruction(opcode)
+
+        self.set_mem(addr, self.Y)
 
     def TAX(self, opcode):
         #***** TAX - Transfer Accumulator to X *****
         if opcode == 0xAA:  # Implied, 1, 2
-            return 0
+            self.X = self.A
+            self.set_Z(self.X == 0)
+            self.set_N(self.X >> 7)
         else:
             return self.invalid_instruction(opcode)
 
     def TAY(self, opcode):
         #***** TAY - Transfer Accumulator to Y *****
         if opcode == 0xA8:  # Implied, 1, 2
-            return 0
+            self.Y = self.A
+            self.set_Z(self.Y == 0)
+            self.set_N(self.Y >> 7)
         else:
             return self.invalid_instruction(opcode)
 
     def TSX(self, opcode):
         #***** TSX - Transfer Stack Pointer to X *****
         if opcode == 0xBA:  # Implied, 1, 2
-            return 0
+            self.X = self.SP
+            self.set_Z(self.X == 0)
+            self.set_N(self.X >> 7)
         else:
             return self.invalid_instruction(opcode)
 
     def TXA(self, opcode):
         #***** TXA - Transfer X to Accumulator *****
         if opcode == 0x8A:  # Implied, 1, 2
-            return 0
+            self.A = self.X
+            self.set_Z(self.A == 0)
+            self.set_N(self.A >> 7)
         else:
             return self.invalid_instruction(opcode)
 
     def TXS(self, opcode):
         #***** TXS - Transfer X to Stack Pointer *****
         if opcode == 0x9A:  # Implied, 1, 2
-            return 0
+            self.SP = self.X
         else:
             return self.invalid_instruction(opcode)
 
     def TYA(self, opcode):
         #***** TYA - Transfer Y to Accumulator *****
         if opcode == 0x98:  # Implied, 1, 2
-            return 0
+            self.A = self.Y
+            self.set_Z(self.A == 0)
+            self.set_N(self.A >> 7)
         else:
             return self.invalid_instruction(opcode)
+
 
     def invalid_instruction(self, opcode):
         print("ERROR: " + opcode)
         raise Exception
+
 
     def C(self):
         return self.get_bit_P(0)
@@ -883,6 +1006,7 @@ class CPU:
     def set_N(self, bit):
         self.set_bit_P(6, bit)
 
+
     def set_bit_P(self, pos, bit):
         mask = ~(1 << pos)
         self.P = self.P & mask | (bit << pos)
@@ -899,6 +1023,7 @@ class CPU:
         else:
             return num
 
+
     # Prints contents of registers
     def _cpu_dump(self) -> str:
         return "Program Counter: " + str(self.PC) + "\n" + str(self.reg) + "\n" + str(self.P)
@@ -906,8 +1031,7 @@ class CPU:
     def __str__(self) -> str:
         return self._cpu_dump()
 
-    # TODO: Write this for the other registers
-    #  Do we actually need this?  Why is a hashmap advantageous?
+
     @property
     def A(self) -> int:
         return self.reg["A"]
@@ -943,11 +1067,3 @@ class CPU:
     @Y.setter
     def Y(self, value) -> None:
         self.reg["Y"] = value
-
-
-
-if (__name__ == "__main__"):
-    c = CPU()
-    print(c)
-    c.A = 2
-
