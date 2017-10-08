@@ -50,7 +50,7 @@ def combine_planes(b: bytes):
          0, 0, 3, 1, 1, 3, 3, 1,
          0, 3, 3, 1, 1, 3, 3, 1]
         """
-    b_bin = [zero_left_extend(bin(x)[2:], 8) for x in b]  # bitstring zero-padded
+    b_bin = [zero_left_extend(bin(x)[2:], 32) for x in b]  # bitstring zero-padded
     plane1_splice = b_bin[0:len(b_bin) // 2]
     plane2_splice = b_bin[len(b_bin) // 2:]
     plane1 = [str_to_lst(s) for s in plane1_splice]  # lists of bits
