@@ -6,13 +6,13 @@ An NES Emulator created during Calhacks 4.0
 - Emulated 6502 CPU
 
 PPU Does not work yet (at all!)
-ROM Load is not entirely correct!
+ROM Load is not entirely correct
 
 # Team Members
-Michelle Cheung
+David Vendrow
 
 Stephen Jayakar
 
-David Vendrow
-
 Alex Yang
+
+Michelle Cheung
