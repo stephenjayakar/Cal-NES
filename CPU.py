@@ -97,6 +97,7 @@ class CPU:
         self.PC += 1
         return byte
 
+
     def get_zero_page_addr(self, offset=0):
         return self.get_PC_byte() + offset
 
@@ -105,6 +106,7 @@ class CPU:
 
     def get_zero_page_addr_y(self):
         return self.get_zero_page_addr(self.Y)
+
 
     def get_zero_page(self, offset=0):
         addr = self.get_PC_byte() + offset
@@ -117,6 +119,7 @@ class CPU:
     def get_zero_page_y(self):
         return self.get_zero_page(self.Y)
 
+
     def get_absolute_addr(self, offset=0):
         lower = self.get_PC_byte()
         upper = self.get_PC_byte()
@@ -127,6 +130,7 @@ class CPU:
 
     def get_absolute_addr_y(self):
         return self.get_absolute_addr(self.Y)
+
 
     def get_absolute(self, offset=0):
         lower = self.get_PC_byte()
@@ -141,10 +145,26 @@ class CPU:
     def get_absolute_y(self):
         return self.get_absolute(self.Y)
 
+
     def get_relative_addr(self):
         offset = self.convert_8bit_twos(self.get_PC_byte())
         addr = self.PC + offset
         return addr
+
+
+    def get_indirect_addr(self, offset=0):
+        addr = self.get_absolute_addr(offset)
+        lower = self.get_mem(addr)
+        upper = self.get_mem(addr + 1)
+        real_addr = (upper << 8) + lower
+        return real_addr
+
+    def get_indirect_addr_x(self):
+        return self.get_indirect_addr(self.X)
+
+    def get_indirect_addr_y(self):
+        return self.get_indirect_addr(self.Y)
+
 
     def get_indirect(self, offset=0):
         addr = self.get_absolute_addr(offset)
@@ -158,6 +178,7 @@ class CPU:
 
     def get_indirect_y(self):
         return self.get_indirect(self.Y)
+
 
     def run_instruction(self):
         opcode = self.get_PC_byte()
@@ -841,89 +862,107 @@ class CPU:
     def STA(self, opcode):
         #***** STA - Store Accumulator *****
         if opcode == 0x85:  # Zero Page, 2, 3
-            return 0
+            addr = self.get_zero_page_addr()
         elif opcode == 0x95:  # Zero Page X, 2, 4
-            return 0
+            addr = self.get_zero_page_addr_x()
         elif opcode == 0x8D:  # Absolute, 3, 4
-            return 0
+            addr = self.get_absolute_addr()
         elif opcode == 0x9D:  # Absolute X, 3, 5
-            return 0
+            addr = self.get_absolute_addr_x()
         elif opcode == 0x99:  # Absolute Y, 3, 5
-            return 0
+            addr = self.get_absolute_addr_y()
         elif opcode == 0x81:  # Indirect X, 2, 6
-            return 0
+            addr = self.get_indirect_addr_x()
         elif opcode == 0x91:  # Indirect Y, 2, 6
-            return 0
+            addr = self.get_indirect_addr_y()
         else:
             return self.invalid_instruction(opcode)
+
+        self.set_mem(addr, self.A)
 
     def STX(self, opcode):
         #***** STX - Store X Register *****
         if opcode == 0x86:  # Zero Page, 2, 3
-            return 0
+            addr = self.get_zero_page_addr()
         elif opcode == 0x96:  # Zero Page Y, 2, 4
-            return 0
+            addr = self.get_zero_page_addr_y()
         elif opcode == 0x8E:  # Absolute, 3, 4
-            return 0
+            addr = self.get_absolute_addr()
         else:
             return self.invalid_instruction(opcode)
+
+        self.set_mem(addr, self.X)
 
     def STY(self, opcode):
         #***** STY - Store Y Register *****
         if opcode == 0x84:  # Zero Page, 2, 3
-            return 0
+            addr = self.get_zero_page_addr()
         elif opcode == 0x94:  # Zero Page X, 2, 4
-            return 0
+            addr = self.get_zero_page_addr_x()
         elif opcode == 0x8C:  # Absolute, 3, 4
-            return 0
+            addr = self.get_absolute_addr()
         else:
             return self.invalid_instruction(opcode)
+
+        self.set_mem(addr, self.Y)
 
     def TAX(self, opcode):
         #***** TAX - Transfer Accumulator to X *****
         if opcode == 0xAA:  # Implied, 1, 2
-            return 0
+            self.X = self.A
+            self.set_Z(self.X == 0)
+            self.set_N(self.X >> 7)
         else:
             return self.invalid_instruction(opcode)
 
     def TAY(self, opcode):
         #***** TAY - Transfer Accumulator to Y *****
         if opcode == 0xA8:  # Implied, 1, 2
-            return 0
+            self.Y = self.A
+            self.set_Z(self.Y == 0)
+            self.set_N(self.Y >> 7)
         else:
             return self.invalid_instruction(opcode)
 
     def TSX(self, opcode):
         #***** TSX - Transfer Stack Pointer to X *****
         if opcode == 0xBA:  # Implied, 1, 2
-            return 0
+            self.X = self.SP
+            self.set_Z(self.X == 0)
+            self.set_N(self.X >> 7)
         else:
             return self.invalid_instruction(opcode)
 
     def TXA(self, opcode):
         #***** TXA - Transfer X to Accumulator *****
         if opcode == 0x8A:  # Implied, 1, 2
-            return 0
+            self.A = self.X
+            self.set_Z(self.A == 0)
+            self.set_N(self.A >> 7)
         else:
             return self.invalid_instruction(opcode)
 
     def TXS(self, opcode):
         #***** TXS - Transfer X to Stack Pointer *****
         if opcode == 0x9A:  # Implied, 1, 2
-            return 0
+            self.SP = self.X
         else:
             return self.invalid_instruction(opcode)
 
     def TYA(self, opcode):
         #***** TYA - Transfer Y to Accumulator *****
         if opcode == 0x98:  # Implied, 1, 2
-            return 0
+            self.A = self.Y
+            self.set_Z(self.A == 0)
+            self.set_N(self.A >> 7)
         else:
             return self.invalid_instruction(opcode)
+
 
     def invalid_instruction(self, opcode):
         print("ERROR: " + opcode)
         raise Exception
+
 
     def C(self):
         return self.get_bit_P(0)
@@ -967,6 +1006,7 @@ class CPU:
     def set_N(self, bit):
         self.set_bit_P(6, bit)
 
+
     def set_bit_P(self, pos, bit):
         mask = ~(1 << pos)
         self.P = self.P & mask | (bit << pos)
@@ -983,6 +1023,7 @@ class CPU:
         else:
             return num
 
+
     # Prints contents of registers
     def _cpu_dump(self) -> str:
         return "Program Counter: " + str(self.PC) + "\n" + str(self.reg) + "\n" + str(self.P)
@@ -990,8 +1031,7 @@ class CPU:
     def __str__(self) -> str:
         return self._cpu_dump()
 
-    # TODO: Write this for the other registers
-    #  Do we actually need this?  Why is a hashmap advantageous?
+
     @property
     def A(self) -> int:
         return self.reg["A"]
@@ -1027,11 +1067,3 @@ class CPU:
     @Y.setter
     def Y(self, value) -> None:
         self.reg["Y"] = value
-
-
-
-if (__name__ == "__main__"):
-    c = CPU()
-    print(c)
-    c.A = 2
-
