@@ -9,9 +9,7 @@ class CPU:
     SP = 0
     
     # Registers
-    reg = {"A": 0,
-           "X": 0,
-           "Y": 0}
+    reg = {}
 
     opcode_to_instruction = {}
 
@@ -19,6 +17,10 @@ class CPU:
         self.ram = ram
         self.PC = PC_START
         self.SP = SP_START #not sure if this should be 100
+
+        self.reg = {"A": 0,
+               "X": 0,
+               "Y": 0}
 
         CPU.opcode_to_instruction = {0x69: self.ADC, 0x65: self.ADC, 0x75: self.ADC, 0x6D: self.ADC, 0x7D: self.ADC,
                                      0x79: self.ADC, 0x61: self.ADC, 0x71: self.ADC,
@@ -84,6 +86,21 @@ class CPU:
                                      0x9A: self.TXS,
                                      0x98: self.TYA
                                     }
+
+
+    def run_instruction(self):
+        opcode = self.get_PC_byte()
+        print("opcode: " + hex(opcode))
+        if opcode not in CPU.opcode_to_instruction:
+            return self.invalid_instruction(opcode)
+        f = CPU.opcode_to_instruction[opcode]
+        print("instruction: " + str(f))
+        res = f(opcode)
+
+    def run_all(self):
+        for i in range(10):
+            print(self._cpu_dump())
+            self.run_instruction()
 
 
     def get_mem(self, addr):
@@ -179,12 +196,6 @@ class CPU:
     def get_indirect_y(self):
         return self.get_indirect(self.Y)
 
-
-    def run_instruction(self):
-        opcode = self.get_PC_byte()
-        f = CPU.opcode_to_instruction[opcode]
-        res = f(opcode)
-        self._cpu_dump()
 
     def ADC(self, opcode):
         # ***** ADC(ADd with Carry) *****
@@ -590,9 +601,9 @@ class CPU:
         elif opcode == 0xB9:  # Absolute Y, 3, 4 (+1 if page crossed)
             self.A = self.get_absolute_y()
         elif opcode == 0xA1:  # Indirect X, 2, 6
-            return self.invalid_instruction(opcode)
+            self.A = self.get_indirect_x()
         elif opcode == 0xB1:  # Indirect Y, 2, 5 (+1 if page crossed)
-            return self.invalid_instruction(opcode)
+            self.A = self.get_indirect_y()
         else:
             return self.invalid_instruction(opcode)
 
@@ -960,7 +971,7 @@ class CPU:
 
 
     def invalid_instruction(self, opcode):
-        print("ERROR: " + opcode)
+        print("Invalid instruction: " + hex(opcode))
         raise Exception
 
 
@@ -1026,7 +1037,7 @@ class CPU:
 
     # Prints contents of registers
     def _cpu_dump(self) -> str:
-        return "Program Counter: " + str(self.PC) + "\n" + str(self.reg) + "\n" + str(self.P)
+        return "PC: " + str(self.PC) + "\n" + "Reg: " + str(self.reg) + "\n" + "Processor Status: " + bin(self.P)
     
     def __str__(self) -> str:
         return self._cpu_dump()
