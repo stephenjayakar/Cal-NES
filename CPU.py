@@ -807,14 +807,14 @@ class CPU:
     def SEC(self, opcode):
         #***** SEC - Set Carry Flag *****
         if opcode == 0x38:  # Implied, 1, 2
-            return 0
+            self.set_C(1)
         else:
             return self.invalid_instruction(opcode)
 
     def SED(self, opcode):
         #***** SED - Set Decimal Flag *****
         if opcode == 0xF8:  # Implied, 1, 2
-            return 0
+            self.set_D(1)
         else:
             return self.invalid_instruction(opcode)
 
@@ -822,8 +822,6 @@ class CPU:
         #***** SEI - Set Interrupt Disable *****
         if opcode == 0x78:  # Implied, 1, 2
             self.set_I(1)
-            self.PC += 1
-            return 0
         else:
             return self.invalid_instruction(opcode)
 
