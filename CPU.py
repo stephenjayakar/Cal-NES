@@ -323,7 +323,18 @@ class CPU:
     def BRK(self, opcode):
         #***** BRK - Force Interrupt *****
         if opcode == 0x00:  #Implied, 1, 7
-            return self.invalid_instruction(opcode)
+            # Push PC and P on stack
+            self.SP -= 3
+            bytes_to_stack = bytearray([self.PC & 0xFF, self.PC >> 8, self.P])
+            self.ram.mem_set(self.SP, bytes_to_stack)
+
+            # Set PC as IRQ vector
+            lower = self.get_mem(0xFFFE)
+            upper = self.get_mem(0xFFFF)
+            self.PC = (upper << 8) | lower
+
+            # Set fag
+            self.set_B(1)
         else:
             return self.invalid_instruction(opcode)
 
