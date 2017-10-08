@@ -1,24 +1,32 @@
-import pygame
+import tkinter as tk
 
 
-class Display:
+palette = ["white", "red", "green", "blue"]
+
+
+class Display(tk.Canvas):
     width = 0
     height = 0
-    screen = None
     
-    def __init__(self, width=256, height=240):
-        self.width = width
-        self.height = height
-        self.screen = pygame.display.set_mode((width, height))
-        self.screen.fill((50, 50, 50))
-        pygame.display.set_caption("Cal-NES")
-        pygame.display.flip()
+    def __init__(self, width=256, height=240, scale=4):
+        self.width = width * scale
+        self.height = height * scale
+        self.scale = scale
+        self.root = tk.Tk()
+        super().__init__(width=self.width, height=self.height, bg="black")
+        self.pack()
 
-    def draw_tile(self, lst: list):
-        pygame.draw.rect(self.screen, (255, 0, 0), (0, 0, 100, 100))
-        pygame.display.flip()
-
-if __name__ == "__main__":
-    d = Display()
-    while True:
-        pass
+    def draw_tile(self, lst: list, x_offset: int, y_offset: int):
+        scale = self.scale
+        x_offset = x_offset * scale * 8
+        y_offset = y_offset * scale * 8
+        x = 0
+        y = 0
+        for choice in lst:
+            y = x // 8
+            xcoord = ((x % 8) * scale) + x_offset
+            ycoord = y * scale + y_offset
+            self.create_rectangle(xcoord, ycoord, xcoord + scale, ycoord + scale, fill=palette[choice])
+            x += 1
+        self.pack()
+    
