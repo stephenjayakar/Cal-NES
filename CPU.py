@@ -582,32 +582,38 @@ class CPU:
     def LDX(self, opcode):
         #***** LDX - Load X Register *****
         if opcode == 0xA2:  # Immediate, 2, 2
-            return 0
+            self.X = self.get_PC_byte()
         elif opcode == 0xA6:  # Zero Page, 2, 3
-            return 0
+            self.X = self.get_zero_page()
         elif opcode == 0xB6:  # Zero Page X, 2, 4
-            return 0
+            self.X = self.get_zero_page_x()
         elif opcode == 0xAE:  # Absolute, 3, 4
-            return 0
+            self.X = self.get_absolute()
         elif opcode == 0xBE:  # Absolute X, 3, 4 (+1 if page crossed)
-            return 0
+            self.X = self.get_absolute_x()
         else:
             return self.invalid_instruction(opcode)
+
+        self.set_Z(self.X == 0)
+        self.set_N(self.X >> 7)
 
     def LDY(self, opcode):
         #***** LDY - Load Y Register *****
         if opcode == 0xA0:  # Immediate, 2, 2
-            return 0
+            self.Y = self.get_PC_byte()
         elif opcode == 0xA4:  # Zero Page, 2, 3
-            return 0
+            self.Y = self.get_zero_page()
         elif opcode == 0xB4:  # Zero Page X, 2, 4
-            return 0
+            self.Y = self.get_zero_page_x()
         elif opcode == 0xAC:  # Absolute, 3, 4
-            return 0
+            self.Y = self.get_absolute()
         elif opcode == 0xBC:  # Absolute X, 3, 4 (+1 if page crossed)
-            return 0
+            self.Y = self.get_absolute_x()
         else:
             return self.invalid_instruction(opcode)
+
+        self.set_Z(self.Y == 0)
+        self.set_N(self.Y >> 7)
 
     def LSR(self, opcode):
         # ***** LSR - Logical Shift Right *****
