@@ -786,23 +786,36 @@ class CPU:
     def SBC(self, opcode):
         #***** SBC - Subtract with Carry *****
         if opcode == 0xE9:  # Immediate, 2, 2
-            return 0
+            operand = self.get_PC_byte();
         elif opcode == 0xE5:  # Zero Page, 2, 3
-            return 0
+            operand = self.get_zero_page_x()
         elif opcode == 0xF5:  # Zero Page X, 2, 4
-            return 0
+            operand = self.get_zero_page_x()
         elif opcode == 0xED:  # Absolute, 3, 4
-            return 0
+            operand = self.get_absolute()
         elif opcode == 0xFD:  # Absolute X, 3, 4 (+1 if page crossed)
-            return 0
+            operand = self.get_absolute_x()
         elif opcode == 0xF9:  # Absolute Y, 3, 4 (+1 if page crossed)
-            return 0
+            operand = self.get_absolute_y()
         elif opcode == 0xE1:  # Indirect X, 2, 6
-            return 0
+            operand = self.get_indirect_x()
         elif opcode == 0xF1:  # Indirect Y, 2, 5 (+1 if page crossed)
-            return 0
+            operand = self.get_indirect_y()
         else:
             return self.invalid_instruction(opcode)
+
+        old_A = self.A
+        result = self.A - operand - (1 - self.C())
+        self.A = result & 0xFF
+
+        self.set_C(1 - (result >> 8))
+        self.set_Z(self.A == 0)
+        self.set_N(self.A >> 7)
+
+        if (old_A >> 7 != operand >> 7) and (self.A >> 7 != old_A >> 7):
+            self.set_V(1)
+        else:
+            self.set_V(0)
 
     def SEC(self, opcode):
         #***** SEC - Set Carry Flag *****
