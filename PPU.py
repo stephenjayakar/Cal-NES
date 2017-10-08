@@ -1,22 +1,33 @@
 from RAM import RAM
 from Display import Display
 
+
+# TODO: This definitely doesn't work
 class PPU():
     cpu_ram = None
     ram = None
     pixel_width, pixel_height = 256, 240
     display = None
+    current_nametable = None
+    nametable_index = 0
     
     def __init__(self, cpu_ram: RAM, ppu_ram: RAM):
         self.cpu_ram = cpu_ram
         self.ram = ppu_ram
         self.display = Display()
 
+    # A tile is 16 bytes
     def tick(self):
-        PPU_CTRL = self.cpu_mem.get(0x2000, 8)
+        PPU_CTRL = self.cpu_ram.mem_get(0x2800, 8)
         ppu_ctrl_r1, ppu_ctrl_r2, ppu_status, ppu_spr_addr, ppu_spr_data, ppu_scroll_reg, ppu_address, ppu_data = PPU_CTRL
-        print(PPU_CTRL)
-        
+        i = self.nametable_index
+        if not self.current_nametable:
+            self.current_nametable = self.ram.mem_get(0x2400, 960)
+            self.nametable_index = 0
+        tile = self.ram.mem_get(self.current_nametable[i] * 64, 16)
+        tile = combine_planes(tile)
+        self.display.draw_tile(tile, i % 8, i // 8)
+        self.nametable_index += 1
         
     def draw_pattern(self, offset: int):
         tile1 = combine_planes(self.ram.mem_get(offset, 16))

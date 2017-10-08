@@ -1,7 +1,7 @@
 import tkinter as tk
 
 
-palette = ["white", "red", "green", "blue"]
+palette = ["white", "green", "blue", "red"]
 
 
 class Display(tk.Canvas):

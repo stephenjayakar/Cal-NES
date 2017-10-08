@@ -90,13 +90,17 @@ class CPU:
 
     def run_instruction(self):
         opcode = self.get_PC_byte()
-        print("opcode: " + hex(opcode))
+        # print("opcode: " + hex(opcode))
         if opcode not in CPU.opcode_to_instruction:
             return self.invalid_instruction(opcode)
         f = CPU.opcode_to_instruction[opcode]
         print("instruction: " + str(f))
+        # print(self._cpu_dump())
         res = f(opcode)
 
+    def tick(self):
+        self.run_instruction()
+        
     def run_all(self):
         for i in range(10):
             print(self._cpu_dump())
@@ -162,9 +166,10 @@ class CPU:
     def get_absolute_y(self):
         return self.get_absolute(self.Y)
 
-
+    # TODO: This doesn't seem to work
     def get_relative_addr(self):
-        offset = self.convert_8bit_twos(self.get_PC_byte())
+        # offset = self.convert_8bit_twos(self.get_PC_byte())
+        offset = self.get_PC_byte()
         addr = self.PC + offset
         return addr
 

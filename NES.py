@@ -3,6 +3,7 @@ from RAM import RAM
 from CPU import CPU
 from PPU import PPU
 import time
+import os
 
 class NES:
     rom = None
@@ -28,15 +29,16 @@ class NES:
         
 def test():
     global offset
-    print(offset)
     n.ppu.display.after(500, test)
-    n.ppu.draw_pattern(offset)
+    os.system("clear")
+    n.cpu.tick()
+    print(n.cpu._cpu_dump())
     offset += 16
         
 if __name__ == "__main__":
     offset = 0
     n = NES("smb.nes")
-    n.ppu.display.after(500, test)
+    n.ppu.display.after(1000, test)
     n.ppu.display.mainloop()
     while True:
         pass
