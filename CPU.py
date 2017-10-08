@@ -661,14 +661,18 @@ class CPU:
     def PHA(self, opcode):
         #***** PHA - Push Accumulator *****
         if opcode == 0x48:  # Implied, 1, 3
-            return 0
+            self.SP -= 1
+            byte_to_load = bytearray([self.A])
+            self.set_mem(self.SP, byte_to_load)
         else:
             return self.invalid_instruction(opcode)
 
     def PHP(self, opcode):
         #***** PHP - Push Processor Status *****
         if opcode == 0x08:  # Implied, 1, 3
-            return 0
+            self.SP -= 1
+            byte_to_load = bytearray([self.P])
+            self.set_mem(self.SP, byte_to_load)
         else:
             return self.invalid_instruction(opcode)
 
