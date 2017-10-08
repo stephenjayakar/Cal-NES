@@ -558,23 +558,26 @@ class CPU:
     def LDA(self, opcode):
         #***** LDA - Load Accumulator *****
         if opcode == 0xA9:  # Immediate, 2, 2
-            return 0
+            self.A = self.get_PC_byte()
         elif opcode == 0xA5:  # Zero Page, 2, 3
-            return 0
+            self.A = self.get_zero_page()
         elif opcode == 0xB5:  # Zero Page X, 2, 4
-            return 0
+            self.A = self.get_zero_page_x()
         elif opcode == 0xAD:  # Absolute, 3, 4
-            return 0
+            self.A = self.get_absolute()
         elif opcode == 0xBD:  # Absolute X, 3, 4 (+1 if page crossed)
-            return 0
+            self.A = self.get_absolute_x()
         elif opcode == 0xB9:  # Absolute Y, 3, 4 (+1 if page crossed)
-            return 0
+            self.A = self.get_absolute_y()
         elif opcode == 0xA1:  # Indirect X, 2, 6
-            return 0
+            return self.invalid_instruction(opcode)
         elif opcode == 0xB1:  # Indirect Y, 2, 5 (+1 if page crossed)
-            return 0
+            return self.invalid_instruction(opcode)
         else:
             return self.invalid_instruction(opcode)
+
+        self.set_Z(self.A == 0)
+        self.set_N(self.A >> 7)
 
     def LDX(self, opcode):
         #***** LDX - Load X Register *****
