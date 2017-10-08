@@ -21,7 +21,8 @@ class NES:
         self.ppu = PPU(self.ram, self.ppu_ram)
         
         # Instructions start at 0x8000 / prg_rom
-        self.ram.mem_set(0x8000, bytearray(self.rom.prg_rom))
+        # self.ram.mem_set(0x8000, bytearray(self.rom.prg_rom))
+        self.ram.mem_set(0x8000, bytearray(self.rom.prg_rom[0x37:]))
 
         # Should start at 0
         self.ppu_ram.mem_set(0, bytearray(self.rom.chr_rom))
@@ -29,17 +30,20 @@ class NES:
         
 def test():
     global offset
-    n.ppu.display.after(500, test)
-    os.system("clear")
+    n.ppu.display.after(1000, test)
+    os.system("cls")
     n.cpu.tick()
     print(n.cpu._cpu_dump())
     offset += 16
         
 if __name__ == "__main__":
     offset = 0
-    n = NES("smb.nes")
-    n.ppu.display.after(1000, test)
-    n.ppu.display.mainloop()
+    n = NES("zelda_test.NES")
+    # n.ppu.display.after(1000, test)
+    # n.ppu.display.mainloop()
     while True:
-        pass
+        input()
+        n.cpu.tick()
+        n.ppu.tick()
+        print(n.cpu._cpu_dump())
     print("Done")

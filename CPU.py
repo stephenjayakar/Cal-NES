@@ -166,14 +166,13 @@ class CPU:
     def get_absolute_y(self):
         return self.get_absolute(self.Y)
 
-    # TODO: This doesn't seem to work
+    # TODO: This might not work completely
     def get_relative_addr(self):
-        # offset = self.convert_8bit_twos(self.get_PC_byte())
-        offset = self.get_PC_byte()
+        offset = self.convert_8bit_twos(self.get_PC_byte())
         addr = self.PC + offset
         return addr
 
-
+    # TODO: This definitely doesn't work ( Should be 2 bytes long but is 3 bytes long )
     def get_indirect_addr(self, offset=0):
         addr = self.get_absolute_addr(offset)
         lower = self.get_mem(addr)
@@ -346,6 +345,7 @@ class CPU:
     def BPL(self, opcode):
         #***** BPL - Branch if Positive *****
         addr = self.get_relative_addr()
+        print(addr)
         if opcode == 0x10:  #Relative, 2, 2
             if not self.N():
                 self.PC = addr
