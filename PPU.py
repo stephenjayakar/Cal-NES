@@ -19,23 +19,8 @@ class PPU():
         
         
     def draw_pattern(self, offset: int):
-        tile1 = combine_planes(self.ram.mem_get(offset, 64))
-        # tile2 = combine_planes(self.ram.mem_get(16, 16))
-        # tile3 = combine_planes(self.ram.mem_get(32, 16))
-        # tile4 = combine_planes(self.ram.mem_get(48, 16))
-        # tile5 = combine_planes(self.ram.mem_get(64, 16))
-        # tile6 = combine_planes(self.ram.mem_get(80, 16))
-        # tile7 = combine_planes(self.ram.mem_get(96, 16))
-        # tile8 = combine_planes(self.ram.mem_get(112, 16))
-        self.display.draw_tile(tile1, 0, 0)
-        # self.display.draw_tile(tile2, 1, 0)
-        # self.display.draw_tile(tile3, 0, 1)
-        # self.display.draw_tile(tile4, 1, 1)
-        # self.display.draw_tile(tile5, 0, 2)
-        # self.display.draw_tile(tile6, 1, 2)
-        # self.display.draw_tile(tile7, 0, 3)
-        # self.display.draw_tile(tile8, 1, 3)
-        
+        tile1 = combine_planes(self.ram.mem_get(offset, 16))
+        self.display.draw_tile(tile1, 0, 0)        
 
 
 def combine_planes(b: bytes):
@@ -50,7 +35,7 @@ def combine_planes(b: bytes):
          0, 0, 3, 1, 1, 3, 3, 1,
          0, 3, 3, 1, 1, 3, 3, 1]
         """
-    b_bin = [zero_left_extend(bin(x)[2:], 32) for x in b]  # bitstring zero-padded
+    b_bin = [zero_left_extend(bin(x)[2:], 8) for x in b]  # bitstring zero-padded
     plane1_splice = b_bin[0:len(b_bin) // 2]
     plane2_splice = b_bin[len(b_bin) // 2:]
     plane1 = [str_to_lst(s) for s in plane1_splice]  # lists of bits

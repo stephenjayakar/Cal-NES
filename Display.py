@@ -18,13 +18,13 @@ class Display(tk.Canvas):
 
     def draw_tile(self, lst: list, x_offset: int, y_offset: int):
         scale = self.scale
-        x_offset = x_offset * scale * 32
-        y_offset = y_offset * scale * 32
+        x_offset = x_offset * scale * 8 + 10
+        y_offset = y_offset * scale * 8 + 10
         x = 0
         y = 0
         for choice in lst:
-            y = x // 32
-            xcoord = ((x % 32) * scale) + x_offset
+            y = x // 8
+            xcoord = ((x % 8) * scale) + x_offset
             ycoord = y * scale + y_offset
             self.create_rectangle(xcoord, ycoord, xcoord + scale, ycoord + scale, fill=palette[choice])
             x += 1

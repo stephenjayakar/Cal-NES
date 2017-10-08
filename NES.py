@@ -25,24 +25,19 @@ class NES:
         # Should start at 0
         self.ppu_ram.mem_set(0, bytearray(self.rom.chr_rom))
         
-        # Only runs one instruction
-        self.cpu.run_instruction()
         
-        
-# def test():
-#     global offset
-#     print(offset)
-#     n.ppu.display.after(500, test)
-#     n.ppu.draw_pattern(offset)
-#     offset += 16
+def test():
+    global offset
+    print(offset)
+    n.ppu.display.after(500, test)
+    n.ppu.draw_pattern(offset)
+    offset += 16
         
 if __name__ == "__main__":
     offset = 0
     n = NES("smb.nes")
-    n.ppu.tick()
-    FILE = open("dump", 'wb')
-    FILE.write(n.ppu_ram.memory)
-    FILE.close()
+    n.ppu.display.after(500, test)
+    n.ppu.display.mainloop()
     while True:
         pass
     print("Done")
