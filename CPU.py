@@ -90,12 +90,12 @@ class CPU:
 
     def run_instruction(self):
         opcode = self.get_PC_byte()
-        # print("opcode: " + hex(opcode))
         if opcode not in CPU.opcode_to_instruction:
             return self.invalid_instruction(opcode)
         f = CPU.opcode_to_instruction[opcode]
+        print("opcode: " + hex(opcode))
         print("instruction: " + str(f))
-        # print(self._cpu_dump())
+        # Do we actually need the output?
         res = f(opcode)
 
     def tick(self):
@@ -166,19 +166,22 @@ class CPU:
     def get_absolute_y(self):
         return self.get_absolute(self.Y)
 
-    # TODO: This might not work completely
+    # This probably works
     def get_relative_addr(self):
         offset = self.convert_8bit_twos(self.get_PC_byte())
         addr = self.PC + offset
         return addr
 
-    # TODO: This definitely doesn't work ( Should be 2 bytes long but is 3 bytes long )
-    def get_indirect_addr(self, offset=0):
-        addr = self.get_absolute_addr(offset)
-        lower = self.get_mem(addr)
-        upper = self.get_mem(addr + 1)
-        real_addr = (upper << 8) + lower
-        return real_addr
+    # TODO: Do a proof of correctness on the value returned lol
+    def get_indirect_addr(self, reg_offset=0):
+        # The next byte after opcode
+        offset = self.get_PC_byte()
+        addr = self.get_mem(offset) + reg_offset
+        return addr
+        # addr = offset + reg_offset
+        # lower = self.get_mem(addr)
+        # upper = self.get_mem(addr + 1)
+        # return (upper << 8) + lower
 
     def get_indirect_addr_x(self):
         return self.get_indirect_addr(self.X)

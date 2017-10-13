@@ -38,11 +38,10 @@ def test():
         
 if __name__ == "__main__":
     offset = 0
-    n = NES("zelda_test.NES")
+    n = NES("zelda_test.nes")
     # n.ppu.display.after(1000, test)
     # n.ppu.display.mainloop()
     while True:
-        input()
         n.cpu.tick()
         n.ppu.tick()
         print(n.cpu._cpu_dump())
