@@ -1,8 +1,0 @@
-class NES:
-    ROM = None
-    RAM = None
-    CPU = None
-    PPU = None
-    APU = None
-    def __init__(self, rom_name: str):
-        
