@@ -9,10 +9,11 @@ PPU Does not work yet (at all!).
 ROM Load is not entirely correct
 
 # Team Members
-David Vendrow
+
+Michelle Cheung
 
 Stephen Jayakar
 
-Alex Yang
+David Vendrow
 
-Michelle Cheung
+Alex Yang
