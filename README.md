@@ -5,9 +5,6 @@ An NES Emulator created during Calhacks 4.0
 - ROM Load
 - Emulated 6502 CPU
 
-PPU Does not work yet (at all!).
-ROM Load is not entirely correct
-
 # Team Members
 
 Michelle Cheung
