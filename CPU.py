@@ -18,9 +18,9 @@ class CPU:
         self.PC = PC_START
         self.SP = SP_START #not sure if this should be 100
 
-        self.reg = {"A": 0,
-               "X": 0,
-               "Y": 0}
+        self.reg = {"A": bytearray([0]),
+                    "X": bytearray([0]),
+                    "Y": bytearray([0])}
 
         CPU.opcode_to_instruction = {0x69: self.ADC, 0x65: self.ADC, 0x75: self.ADC, 0x6D: self.ADC, 0x7D: self.ADC,
                                      0x79: self.ADC, 0x61: self.ADC, 0x71: self.ADC,
@@ -175,9 +175,9 @@ class CPU:
     # TODO: Do a proof of correctness on the value returned lol
     def get_indirect_addr(self, reg_offset=0):
         # The next byte after opcode
-        offset = self.get_PC_byte()
-        addr = self.get_mem(offset) + reg_offset
-        return addr
+        zero_page_addr = self.get_PC_byte()
+        addr = self.get_mem(zero_page_addr) + (self.get_mem(zero_page_addr + 1) << 8)
+        return addr + reg_offset
         # addr = offset + reg_offset
         # lower = self.get_mem(addr)
         # upper = self.get_mem(addr + 1)
@@ -1052,37 +1052,25 @@ class CPU:
 
 
     @property
-    def A(self) -> int:
-        return self.reg["A"]
-
-    @A.getter
-    def A(self) -> int:
-        return self.reg["A"]
+    def A(self) -> bytes:
+        return self.reg["A"][0]
 
     @A.setter
     def A(self, value) -> None:
-        self.reg["A"] = value
+        self.reg["A"][0] = value % 256
 
     @property
-    def X(self) -> int:
-        return self.reg["X"]
-
-    @X.getter
-    def X(self) -> int:
-        return self.reg["X"]
+    def X(self) -> bytes:
+        return self.reg["X"][0]
 
     @X.setter
     def X(self, value) -> None:
-        self.reg["X"] = value
+        self.reg["X"][0] = value % 256
 
     @property
-    def Y(self) -> int:
-        return self.reg["Y"]
-
-    @Y.getter
-    def Y(self) -> int:
-        return self.reg["Y"]
+    def Y(self) -> bytes:
+        return self.reg["Y"][0]
 
     @Y.setter
     def Y(self, value) -> None:
-        self.reg["Y"] = value
+        self.reg["Y"][0] = value % 256
