@@ -2,6 +2,7 @@ from ROM import ROM
 from RAM import RAM
 from CPU import CPU
 from PPU import PPU
+import pygame
 import time
 import os
 
@@ -28,21 +29,19 @@ class NES:
         self.ppu_ram.mem_set(0, bytearray(self.rom.chr_rom))
         
         
-def test():
-    global offset
-    n.ppu.display.after(1000, test)
-    os.system("cls")
-    n.cpu.tick()
-    print(n.cpu._cpu_dump())
-    offset += 16
         
 if __name__ == "__main__":
     offset = 0
-    n = NES("zelda_test.nes")
-    # n.ppu.display.after(1000, test)
-    # n.ppu.display.mainloop()
+    n = NES("smb.nes")
+    start_time = time.time()
     while True:
-        n.cpu.tick()
+        event = pygame.event.get()
+        for e in event:
+            if e.type == pygame.QUIT:
+                quit()
+        # n.cpu.tick()
         n.ppu.tick()
-        print(n.cpu._cpu_dump())
+        if time.time() - start_time >= .016639:
+            start_time = time.time()
+            n.ppu.update_display()
     print("Done")
