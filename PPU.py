@@ -182,7 +182,66 @@ class PPU:
             self.w = 0
 
     def readData(self):
-        value = self.Read(self.v)
+        value = self.ram.read_byte(self.v)
+        if self.v % 0x4000 < 0x3F00:
+            buffered = self.bufferedData
+            self.bufferedData = value
+            value = buffered
+        else:
+            self.bufferedData = self.ram.read_byte(self.v - 0x1000)
+        # increment address
+        if self.flagIncrement == 0:
+            self.v += 1
+        else:
+            self.v += 32
+        return value
+
+    def writeData(self, value):
+        self.ram.write_byte(self.v, value)
+        if self.flagIncrement == 0:
+            self.v += 1
+        else:
+            self.v += 32
+
+    def writeDMA(self, value):
+        cpu = nes.cpu
+        address = value << 8
+        for i in range(256):
+            self.oamData[self.oamAddress] = nes.ram.read_byte(address)
+            self.oamAddress += 1
+            address += 1
+        # WHAT IS THIS
+        cpu.stall += 513
+        if cpu.cycles % 2 == 1:
+            cpu.stall += 1
+
+    def incrementX(self):
+        if self.v & 0x001F == 31:
+            self.v &= 0xFFE0
+            self.v ^= 0x0400
+        else:
+            self.v += 1
+
+    def incrementY(self):
+        if self.v & 0x7000 != 0x7000:
+            self.v += 0x1000
+        else:
+            self.v &= 0x8FFF
+            y = (self.v & 0x03E0) >> 5
+            if y == 29:
+                y = 0
+                self.v ^= 0x0800
+            elif y == 31:
+                y = 0
+            else:
+                y += 1
+            self.v = (self.v & 0xFC1F) | (y << 5)
+
+    def copyX(self):
+        self.v = (self.v & 0xFBE0) | (self.t & 0x041F)
+
+    def copyY(self):
+        self.v = (self.v & 0x841F) | (self.t & 0x7BE0)    
         
     def nmiChange(self):
         nmi = self.nmiOutput and self.nmiOccured
@@ -191,6 +250,75 @@ class PPU:
             self.nmiDelay = 15
         self.nmiPrevious = nmi
 
+    def setVerticalBlank(self):
+        self.front, self.back = self.back, self.front
+        self.nmiOccurred = True
+        self.nmiChange()
+
+    def clearVerticalBlank(self):
+        self.nmiOccurred = False
+        self.nmiChange()
+
+    def fetchNameTableByte(self):
+        address = 0x2000 | (self.v & 0x0FFF)
+        self.nameTableByte = self.ram.read_byte(address)
+
+    def fetchAttributeTableByte(self):
+        address = 0x23C0 | (self.v & 0x0C00) | ((self.v >> 4) & 0x38) | ((self.v >> 2) & 0x07)
+        shift = ((self.v >> 4) & 4) | (self.v & 2)
+        self.attributeTableByte = ((self.mem.read_byte(address) >> shift) & 3) << 2
+
+    def fetchLowTileByte(self):
+        fineY = (self.v >> 12) & 7
+        table = self.flagBackgroundTable
+        tile = self.nameTableByte
+        address = 0x1000 * table + tile * 16 + fineY
+        self.lowTileByte = self.mem.read_byte(address)
+
+    def fetchHighTileByte(self):
+        fineY = (self.v >> 12) & 7
+        table = self.flagBackgroundTable
+        tile = self.nameTableByte
+        address = 0x1000 * table + tile * 16 + fineY
+        self.highTileByte = self.mem.read_byte(address + 8)
+
+    def storeTileData(self):
+        data = 0
+        for i in range(8):
+            a = self.attributeTableByte
+            p1 = (self.lowTileByte & 0x80) >> 7
+            p2 = (self.highTileByte & 0x80) >> 6
+            self.lowTileByte <<= 1
+            self.highTileByte <<= 1
+            data <<= 4
+            data |= (a | p1 | p2)
+        self.tiledata = data
+
+    def fetchTileData(self):
+        return self.tileData >> 32
+
+    def backgroundPixel(self):
+        if self.flagShowBackground == 0:
+            return 0
+        data = self.fetchTileData() >> ((7 - self.x) * 4)
+        return data & 0x0F
+
+    def spritePixel(self):
+        if self.flagShowSprites == 0:
+            return (0, 0)
+        for i in range(self.spriteCount):
+            offset = (self.cycle - 1) - int(self.spritePositions[i])
+            if offset < 0 or offset > 7:
+                continue
+            offset = 7 - offset
+            color = (self.spritePatterns[i] >> (offset * 4)) & 0x0F
+            if color % 4 == 0:
+                continue
+            return (i, color)
+        return (0, 0)
+
+    def renderPixel(self):
+        
 
 # TODO: This definitely doesn't work
 '''
