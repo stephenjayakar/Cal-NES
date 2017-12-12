@@ -11,10 +11,10 @@ class PPU:
     scanline = 0 # 0-261, 0-239=visible, 240=post, 241-260=vblank, 261=pre
     frame = 0 # frame counter
 
-    paletteData = []
-    nameTableData = []
-    oamData = []
-    # not sure what these two do
+    paletteData = [0] * 32
+    nameTableData = [0] * 2048
+    oamData = [0] * 256
+    # uhh are these displays?
     front = None
     back = None
 
@@ -42,10 +42,10 @@ class PPU:
 
     # sprite temporary variables
     spriteCount = 0 #      int
-    spritePatterns = [] #   [8]uint32
-    spritePositions = [] # [8]byte
-    spritePriorities = [] # [8]byte
-    spriteIndexes = [] #    [8]byte
+    spritePatterns = [0] * 8 #   [8]uint32
+    spritePositions = [0] * 8 # [8]byte
+    spritePriorities = [0] * 8# [8]byte
+    spriteIndexes = [0] * 8 #    [8]byte
 
     # $2000 PPUCTRL
     flagNameTable = 0 #       byte // 0: $2000; 1: $2400; 2: $2800; 3: $2C00
@@ -78,7 +78,8 @@ class PPU:
     def __init__(self, nes, ram):
         self.nes = nes
         self.ram = ram
-        self.display = Display()
+        self.back = Display()
+        self.front = Display()
 
     def reset(self):
         self.cycle = 340
@@ -318,7 +319,168 @@ class PPU:
         return (0, 0)
 
     def renderPixel(self):
-        
+        x = self.cycle - 1
+        y = self.scanline
+        background = self.backgroundPixel()
+        i, sprite = self.spritePixel()
+        if x < 8 and self.flagShowLeftBackground == 0:
+            background = 0
+        if x < 8 and self.flagShowLeftSprites == 0:
+            sprite = 0
+        b = background % 4 != 0
+        s = sprite % 4 != 0
+        color = 0
+        if !b and !s:
+            color = 0
+        elif !b and s:
+            color = sprite | 0x10
+        elif b and !s:
+            color = background
+        else:
+            if self.spriteIndexes[i] == 0 and x < 255:
+                self.flagSpriteZeroHit = 1
+            if self.spritePriorities[i] == 0:
+                color = sprite | 0x10
+            else:
+                color = background
+        # hmm
+        c = Palette[self.readPalette(color % 64)]
+        self.back.SetRGBA(x, y, c)
+
+    def fetchSpritePattern(i, row):
+        tile = self.oamData[i * 4 + 1]
+        attributes = self.oamData[i * 4 + 2]
+        address = 0
+        if self.flagSpriteSize == 0:
+            if attributes & 0x80 == 0x80:
+                row = 7 - row
+            table = self.flagSpriteTable
+            address = 0x1000 * table + tile * 16 + row
+        else:
+             if attributes & 0x80 == 0x80:
+                 row = 15 - row
+                table = tile & 1
+                tile &= 0xFE
+                if row > 7:
+                    tile += 1
+                    row -= 8
+                address = 0x1000 * table + tile * 16 + row
+        a = (attributes & 3) << 2
+        lowTileByte = self.mem.read_byte(address)
+        highTileByte = self.mem.read_byte(address + 8)
+        data = 0
+        for i in range(8):
+            p1, p2 = 0, 0
+            if attributes & 0x40 == 0x40:
+                p1 = (lowTileByte & 1) 
+                p2 = (highTileByte & 1) << 1
+                lowTileByte >>= 1
+                highTileByte >>= 1
+            else:
+                p1 = (lowTileByte & 0x80) >> 7
+                p2 = (highTileByte & 0x80) >> 6
+                lowTileByte <<= 1
+                highTileByte <<= 1
+            data <<= 4
+            data |= (a | p1 | p2)
+        return data
+
+    def evaluateSprites(self):
+        h = 0
+        if self.flagSpriteSize == 0:
+            h = 8
+        else:
+            h = 16
+        count = 0
+        for i in range(64):
+            y = self.oamData[i * 4]
+            a = self.oamData[i * 4 + 2]
+            x = self.oamData[i * 4 + 3]
+            row = self.scanline - y
+            if row < 0 || row >= h:
+                continue
+            if count < 8:
+                self.spritePatterns[count] = self.fetchSpritePattern(i, row)
+                self.spritePositions[count] = x
+                self.spritePriorities[count] = (a >> 5) & 1
+                self.spriteIndexes[count] = i
+            count += 1
+        if count > 8:
+            count = 8
+            self.flagSpriteOverflow = 1
+        self.spriteCount = count
+
+    def tick(self):
+        if self.nmiDelay > 0:
+            self.nmiDelay -= 1
+            if self.nmiDelay == 0 and self.nmiOutput and self.nmiOccurred:
+                self.nes.cpu.triggerNMI()
+
+        if self.flagShowBackground != 0 or self.flagShowSprites != 0:
+            if self.f == 1 and self.scanline == 261 and self.cycle == 339:
+                self.cycle = 0
+                self.scanline = 0
+                self.frame += 1
+                self.f ^= 1
+                return
+        self.cycle += 1
+        if self.cycle > 340:
+            self.cycle = 0
+            self.scanline += 1
+            if self.scanline > 261:
+                self.scanline = 0
+                self.frame += 1
+                self.f ^= 1
+
+    def step(self):
+        self.tick()
+        renderingEnabled = self.flagShowBackground != 0 || self.flagShowSprites != 0
+        preline = self.scanline == 261
+        visibleline = self.scanline < 240
+        renderline = preline || visibleline
+        prefetchcycle = self.cycle >= 321 and self.cycle <= 336
+        visiblecycle = self.cycle >= 1 and self.cycle <= 256
+        fetchcycle = prefetchcycle || visiblecycle
+
+        if renderingEnabled:
+            if visibleline and visiblecycle:
+                self.renderPixel()
+            if renderline and fetchcycle:
+                self.tileData <<= 4
+                x = self.cycle % 8
+                if x == 1:
+                    self.fetchNameTableByte()
+                if x == 3:
+                    self.fetchAttributeTableByte()
+                if x == 5:
+                    self.fetchLowTileByte()
+                if x == 7:
+                    self.fetchHighTileByte()
+                if x == 0:
+                    self.storeTileData()
+            if preline and self.cycle >= 280 and self.cycle <= 304:
+                self.copyY()
+            if renderline:
+                if fetchcycle and self.cycle % 8 == 0:
+                    self.incrementX()
+                if self.cycle == 256:
+                    self.incrementY()
+                if self.cycle == 257:
+                    self.copyX()
+        # i am not sure if we need to test this ( can it change ? )
+        if renderingEnabled:
+            if self.cycle == 257:
+                if visibleline:
+                    self.evaluateSprites()
+                else:
+                    self.spriteCount = 0
+
+        if self.scanline == 241 and self.cycle == 1:
+            self.setVerticalBlank()
+        if preline and self.cycle == 1:
+            self.clearVerticalBlank()
+            self.flagSpriteZeroHit = 0
+            self.flagSpriteOverflow = 0
 
 # TODO: This definitely doesn't work
 '''

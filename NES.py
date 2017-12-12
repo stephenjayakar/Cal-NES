@@ -14,7 +14,7 @@ class NES:
     ppu = None
     apu = None
     
-    def __init__(self, rom_name: str):
+    def __init__(self, rom_name):
         self.rom = ROM(rom_name)
         self.ram = RAM()
         self.ppu_ram = RAM()
@@ -27,7 +27,31 @@ class NES:
 
         # Should start at 0
         self.ppu_ram.mem_set(0, bytearray(self.rom.chr_rom))
-        
+
+    def step(self):
+        cpu_cycles = self.cpu.step()
+        ppu_cycles = cpu_cycles * 3
+        for i in range(ppu_cycles):
+            self.ppu.step()
+            # mapper?
+        for i in range(cpu_cycles):
+            # step the apu
+            pass 
+        return cpu_cycles
+
+    # why does this return an int
+    def step_frame(self):
+        cpu_cycles = 0
+        frame = self.ppu.frame
+        while frame == self.ppu.frame:
+            cpu_cycles += self.step()
+        return cpu_cycles
+
+    def buffer(self):
+        return self.ppu.front
+
+    def background_color(self):
+        return Palette[console.ppu.readPalette(0) % 64]
         
         
 if __name__ == "__main__":
