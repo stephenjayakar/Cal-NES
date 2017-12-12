@@ -1,20 +1,33 @@
+from enum import Enum
+
 class CPU:
     # Random Access Memory
-    ram = 0
+    mem = None
     # Program Counter
     PC = 0
     # Processor Status
     P = 0b0
     # Stack Pointer ($0100-$01FF)
     SP = 0
+
+    # Interrupt Disable flag
+    I = 0
     
     # Registers
     reg = {}
 
     opcode_to_instruction = {}
 
-    def __init__(self, ram, PC_START = 0x8000, SP_START = 0x200):
-        self.ram = ram
+    stall = 0
+
+    # interrupts
+    class Interrupt(Enum):
+        interruptNone = 0
+        interruptNMI = 1 
+        interruptIRQ = 2 
+
+    def __init__(self, mem, PC_START = 0x8000, SP_START = 0x200):
+        self.mem = mem
         self.PC = PC_START
         self.SP = SP_START #not sure if this should be 100
 
@@ -98,26 +111,37 @@ class CPU:
         # Do we actually need the output?
         res = f(opcode)
 
-    def tick(self):
+    # Executes a single instruction
+    def step(self):
+        if self.stall > 0:
+            self.stall =- 1
+            return 1
+        cycles = 1 # self.cycles # what does this do haaaaaha
         self.run_instruction()
+        return cycles
         
-    def run_all(self):
-        for i in range(10):
-            print(self._cpu_dump())
-            self.run_instruction()
+    # def run_all(self):
+    #     for i in range(10):
+    #         printfram(self._cpu_dump())
+    #         self.run_instruction()
 
+    def triggerNMI(self):
+        self.interrupt = Interrupt.interruptNMI
+
+    def triggerIRQ(self):
+        if self.I == 0:
+            self.interrupt = interruptIRQ
 
     def get_mem(self, addr):
-        return self.ram.mem_get(addr, 1)[0]
+        return self.mem.read_byte(addr)
 
-    def set_mem(self, addr, byte):
-        self.ram.mem_set(addr, bytearray([byte]))
+    def set_mem(self, addr, value):
+        self.mem.write_byte(addr, byte)
 
     def get_PC_byte(self):
         byte = self.get_mem(self.PC)
         self.PC += 1
         return byte
-
 
     def get_zero_page_addr(self, offset=0):
         return self.get_PC_byte() + offset
@@ -348,7 +372,6 @@ class CPU:
     def BPL(self, opcode):
         #***** BPL - Branch if Positive *****
         addr = self.get_relative_addr()
-        print(addr)
         if opcode == 0x10:  #Relative, 2, 2
             if not self.N():
                 self.PC = addr
@@ -361,8 +384,11 @@ class CPU:
             # Push PC and P on stack
             self.SP -= 3
             bytes_to_stack = bytearray([self.P, self.PC & 0xFF, self.PC >> 8])
-            self.ram.mem_set(self.SP, bytes_to_stack)
-
+            # self.ram.mem_set(self.SP, bytes_to_stack)
+            pointer = self.SP
+            for b in bytes_to_stack:
+                self.mem.write_byte(pointer, b)
+                pointer += 1
             # Set PC as IRQ vector
             lower = self.get_mem(0xFFFE)
             upper = self.get_mem(0xFFFF)
@@ -589,7 +615,11 @@ class CPU:
             jump_addr = self.get_absolute_addr()
             self.SP -= 2
             bytes_to_load = bytearray([self.PC & 0xFF, self.PC >> 8])
-            self.ram.mem_set(self.SP, bytes_to_load)
+            # self.ram.mem_set(self.SP, bytes_to_load)
+            pointer = self.SP
+            for b in bytes_to_load:
+                self.mem.write_byte(pointer, b)
+                pointer += 1
             self.PC = jump_addr
         else:
             return self.invalid_instruction(opcode)
@@ -803,7 +833,10 @@ class CPU:
     def RTI(self, opcode):
         #***** RTI - Return from Interrupt *****
         if opcode == 0x40:  # Implied, 1, 6
-            loaded = self.ram.mem_get(self.SP, 3)
+            # loaded = self.ram.mem_get(self.SP, 3)
+            loaded = []
+            for i in range(3):
+                loaded.append(self.mem.read_byte(self.SP + i))
             self.P = loaded[0]
             lower = loaded[1]
             upper = loaded[2]
@@ -815,7 +848,10 @@ class CPU:
     def RTS(self, opcode):
         #***** RTS - Return from Subroutine *****
         if opcode == 0x60:  # Implied, 1, 6
-            loaded = self.ram.mem_get(self.SP, 2)
+            # loaded = self.ram.mem_get(self.SP, 2)
+            loaded = []
+            for i in range(2):
+                loaded.append(self.mem.read_byte(self.SP + i))
             lower = loaded[0]
             upper = loaded[1]
             self.PC = (upper << 8) | lower

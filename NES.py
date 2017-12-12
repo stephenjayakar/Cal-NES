@@ -1,5 +1,5 @@
 from ROM import ROM
-from RAM import RAM
+from RAM import cpuMEM, ppuMEM
 from CPU import CPU
 from PPU import PPU
 import pygame
@@ -16,17 +16,21 @@ class NES:
     
     def __init__(self, rom_name):
         self.rom = ROM(rom_name)
-        self.ram = RAM()
-        self.ppu_ram = RAM()
-        self.cpu = CPU(self.ram)
-        self.ppu = PPU(self, self.ppu_ram)
+        self.ram = bytearray(0x10000)
+        self.cpu = CPU(cpuMEM(self))
+        self.ppu = PPU(self, ppuMEM(self))
         
         # Instructions start at 0x8000 / prg_rom
         # self.ram.mem_set(0x8000, bytearray(self.rom.prg_rom))
-        self.ram.mem_set(0x8000, bytearray(self.rom.prg_rom[0x37:]))
+        # self.ram.mem_set(0x8000, bytearray(self.rom.prg_rom[0x37:]))
+        pointer = 0x0
+        for b in self.rom.prg_rom[0x37:]:
+            self.ram[pointer] = b
+            pointer += 1
 
-        # Should start at 0
-        self.ppu_ram.mem_set(0, bytearray(self.rom.chr_rom))
+        # where does the ppu ram go?
+        # probably answered by mappers
+        # self.ppu_ram.mem_set(0, bytearray(self.rom.chr_rom))
 
     def step(self):
         cpu_cycles = self.cpu.step()
@@ -56,16 +60,18 @@ class NES:
         
 if __name__ == "__main__":
     offset = 0
-    n = NES("smb.nes")
-    start_time = time.time()
+    n = NES("zelda_test.nes")
+    display_start_time = time.time()
+    clock_start_time = time.time()
     while True:
         event = pygame.event.get()
         for e in event:
             if e.type == pygame.QUIT:
                 quit()
-        # n.cpu.tick()
-        n.ppu.tick()
-        if time.time() - start_time >= .016639:
-            start_time = time.time()
-            n.ppu.update_display()
+        if time.time() - clock_start_time >= .00000055873007359033799258341700316185:
+            clock_start_time = time.time()
+            n.step()
+        if time.time() - display_start_time >= .016639:
+            display_start_time = time.time()
+            n.ppu.front.update()
     print("Done")

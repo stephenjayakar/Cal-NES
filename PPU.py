@@ -1,4 +1,3 @@
-from RAM import RAM
 from Display import Display
 import random
 import pygame
@@ -28,7 +27,7 @@ class PPU:
     register = 0 # byte? not sure what this is for
 
     # nmi flags, what is this lol
-    nmiOccured = False
+    nmiOccurred = False
     nmiOutput = False
     nmiPrevious = False
     nmiDelay = 0 # 8b
@@ -90,14 +89,14 @@ class PPU:
         self.writeOAMAddress(0)
 
     def readPalette(self, address):
-	if address >= 16 and address % 4 == 0:
-	    address -= 16
-	return ppu.paletteData[address]
+        if address >= 16 and address % 4 == 0:
+            address -= 16
+        return ppu.paletteData[address]
     
     def writePalette(address, value):
-	if address >= 16 and address % 4 == 0:
-	    address -= 16
-	ppu.paletteData[address] = value
+        if address >= 16 and address % 4 == 0:
+            address -= 16
+        ppu.paletteData[address] = value
 
     def readRegister(self, address):
         if address == 0x2002:
@@ -112,21 +111,21 @@ class PPU:
     def writeRegister(address, value):
         self.register = value
         if address == 0x2000:
-	    self.writeControl(value)
-	if address == 0x2001:
-	    self.writeMask(value)
-	if address == 0x2003:
-	    self.writeOAMAddress(value)
-	if address == 0x2004:
-	    self.writeOAMData(value)
-	if address == 0x2005:
-	    self.writeScroll(value)
-	if address == 0x2006:
-	    self.writeAddress(value)
-	if address == 0x2007:
-	    self.writeData(value)
-	if address == 0x4014:
-	    self.writeDMA(value)
+            self.writeControl(value)
+        if address == 0x2001:
+            self.writeMask(value)
+        if address == 0x2003:
+            self.writeOAMAddress(value)
+        if address == 0x2004:
+            self.writeOAMData(value)
+        if address == 0x2005:
+            self.writeScroll(value)
+        if address == 0x2006:
+            self.writeAddress(value)
+        if address == 0x2007:
+            self.writeData(value)
+        if address == 0x4014:
+            self.writeDMA(value)
 
     def writeControl(self, ctrl: int):
         self.flagNameTable = ctrl & 3
@@ -142,23 +141,23 @@ class PPU:
     def writeMask(self, mask: int):
         self.flagGrayscale = mask & 1
         self.flagShowLeftBackground = (mask >> 1) & 1
-	self.flagShowLeftSprites = (mask >> 2) & 1
-	self.flagShowBackground = (mask >> 3) & 1
-	self.flagShowSprites = (mask >> 4) & 1
-	self.flagRedTint = (mask >> 5) & 1
-	self.flagGreenTint = (mask >> 6) & 1
-	self.flagBlueTint = (mask >> 7) & 1
+        self.flagShowLeftSprites = (mask >> 2) & 1
+        self.flagShowBackground = (mask >> 3) & 1
+        self.flagShowSprites = (mask >> 4) & 1
+        self.flagRedTint = (mask >> 5) & 1
+        self.flagGreenTint = (mask >> 6) & 1
+        self.flagBlueTint = (mask >> 7) & 1
 
     def readStatus(self):
         result = self.register & 0x1F
-	result |= self.flagSpriteOverflow << 5
-	result |= self.flagSpriteZeroHit << 6
-	if self.nmiOccurred:
-	    result |= 1 << 7
-	self.nmiOccurred = false
-	self.nmiChange()
-	self.w = 0
-	return result
+        result |= self.flagSpriteOverflow << 5
+        result |= self.flagSpriteZeroHit << 6
+        if self.nmiOccurred:
+            result |= 1 << 7
+        self.nmiOccurred = False
+        self.nmiChange()
+        self.w = 0
+        return result
         
     def writeOAMAddress(self, oam: int):
         self.oamAddress = oam
@@ -205,10 +204,10 @@ class PPU:
             self.v += 32
 
     def writeDMA(self, value):
-        cpu = nes.cpu
+        cpu = self.nes.cpu
         address = value << 8
         for i in range(256):
-            self.oamData[self.oamAddress] = nes.ram.read_byte(address)
+            self.oamData[self.oamAddress] = self.nes.ram.read_byte(address)
             self.oamAddress += 1
             address += 1
         # WHAT IS THIS
@@ -246,7 +245,7 @@ class PPU:
         
     def nmiChange(self):
         nmi = self.nmiOutput and self.nmiOccured
-        if nmi and !self.nmiPrevious:
+        if nmi and not self.nmiPrevious:
             # uh there's apparently a long delay here
             self.nmiDelay = 15
         self.nmiPrevious = nmi
@@ -330,11 +329,11 @@ class PPU:
         b = background % 4 != 0
         s = sprite % 4 != 0
         color = 0
-        if !b and !s:
+        if not b and not s:
             color = 0
-        elif !b and s:
+        elif not b and s:
             color = sprite | 0x10
-        elif b and !s:
+        elif b and not s:
             color = background
         else:
             if self.spriteIndexes[i] == 0 and x < 255:
@@ -358,7 +357,7 @@ class PPU:
             address = 0x1000 * table + tile * 16 + row
         else:
              if attributes & 0x80 == 0x80:
-                 row = 15 - row
+                row = 15 - row
                 table = tile & 1
                 tile &= 0xFE
                 if row > 7:
@@ -397,7 +396,7 @@ class PPU:
             a = self.oamData[i * 4 + 2]
             x = self.oamData[i * 4 + 3]
             row = self.scanline - y
-            if row < 0 || row >= h:
+            if row < 0 or row >= h:
                 continue
             if count < 8:
                 self.spritePatterns[count] = self.fetchSpritePattern(i, row)
@@ -434,13 +433,13 @@ class PPU:
 
     def step(self):
         self.tick()
-        renderingEnabled = self.flagShowBackground != 0 || self.flagShowSprites != 0
+        renderingEnabled = self.flagShowBackground != 0 or self.flagShowSprites != 0
         preline = self.scanline == 261
         visibleline = self.scanline < 240
-        renderline = preline || visibleline
+        renderline = preline or visibleline
         prefetchcycle = self.cycle >= 321 and self.cycle <= 336
         visiblecycle = self.cycle >= 1 and self.cycle <= 256
-        fetchcycle = prefetchcycle || visiblecycle
+        fetchcycle = prefetchcycle or visiblecycle
 
         if renderingEnabled:
             if visibleline and visiblecycle:
