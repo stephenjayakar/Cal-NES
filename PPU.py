@@ -4,7 +4,196 @@ import random
 import pygame
 
 
+class PPU:
+    nes = None
+    ram = None
+    cycle = 0 # 0-340
+    scanline = 0 # 0-261, 0-239=visible, 240=post, 241-260=vblank, 261=pre
+    frame = 0 # frame counter
+
+    paletteData = []
+    nameTableData = []
+    oamData = []
+    # not sure what these two do
+    front = None
+    back = None
+
+    # PPU Registers
+    v = 0 # current vram address, 15b
+    t = 0 # temp vram address, 15b
+    x = 0 # fine x scroll 3b
+    w = 0 # write toggle 1b
+    f = 0 # even/odd frame flag 1b
+
+    register = 0 # byte? not sure what this is for
+
+    # nmi flags, what is this lol
+    nmiOccured = False
+    nmiOutput = False
+    nmiPrevious = False
+    nmiDelay = 0 # 8b
+
+    # background temp vars, maybe make these locals
+    nameTableByte = 0 #      byte
+    attributeTableByte = 0 #  byte
+    lowTileByte = 0 #        byte
+    highTileByte = 0 #      byte
+    tileData = 0 #           uint64
+
+    # sprite temporary variables
+    spriteCount = 0 #      int
+    spritePatterns = [] #   [8]uint32
+    spritePositions = [] # [8]byte
+    spritePriorities = [] # [8]byte
+    spriteIndexes = [] #    [8]byte
+
+    # $2000 PPUCTRL
+    flagNameTable = 0 #       byte // 0: $2000; 1: $2400; 2: $2800; 3: $2C00
+    flagIncrement = 0 #      byte // 0: add 1; 1: add 32
+    flagSpriteTable = 0 #     byte // 0: $0000; 1: $1000; ignored in 8x16 mode
+    flagBackgroundTable = 0 # byte // 0: $0000; 1: $1000
+    flagSpriteSize = 0 #      byte // 0: 8x8; 1: 8x16
+    flagMasterSlave = 0 #    byte // 0: read EXT; 1: write EXT
+
+    # $2001 PPUMASK
+    flagGrayscale = 0 #          byte // 0: color; 1: grayscale
+    flagShowLeftBackground = 0# byte // 0: hide; 1: show
+    flagShowLeftSprites = 0 #    byte // 0: hide; 1: show
+    flagShowBackground = 0 #    byte // 0: hide; 1: show
+    flagShowSprites = 0 #       byte // 0: hide; 1: show
+    flagRedTint = 0 #            byte // 0: normal; 1: emphasized
+    flagGreenTint = 0 #         byte // 0: normal; 1: emphasized
+    flagBlueTint = 0 #          byte // 0: normal; 1: emphasized
+
+    # $2002 PPUSTATUS
+    flagSpriteZeroHit = 0 #   byte
+    flagSpriteOverflow = 0 # byte
+
+    # $2003 OAMADDR
+    oamAddress = 0 # byte
+
+    # $2007 PPUDATA
+    bufferedData = 0 # byte // for buffered reads
+
+    def __init__(self, nes, ram):
+        self.nes = nes
+        self.ram = ram
+        self.display = Display()
+
+    def reset(self):
+        self.cycle = 340
+        self.scanline = 240
+        self.frame = 0
+        self.writeControl(0)
+        self.writeMask(0)
+        self.writeOAMAddress(0)
+
+    def readPalette(self, address):
+	if address >= 16 and address % 4 == 0:
+	    address -= 16
+	return ppu.paletteData[address]
+    
+    def writePalette(address, value):
+	if address >= 16 and address % 4 == 0:
+	    address -= 16
+	ppu.paletteData[address] = value
+
+    def readRegister(self, address):
+        if address == 0x2002:
+            return self.readStatus()
+        if address == 0x2004:
+            return self.readOAMData()
+        if address == 0x2007:
+            return self.readData()
+        return 0
+
+    # consider rewriting this with hashing
+    def writeRegister(address, value):
+        self.register = value
+        if address == 0x2000:
+	    self.writeControl(value)
+	if address == 0x2001:
+	    self.writeMask(value)
+	if address == 0x2003:
+	    self.writeOAMAddress(value)
+	if address == 0x2004:
+	    self.writeOAMData(value)
+	if address == 0x2005:
+	    self.writeScroll(value)
+	if address == 0x2006:
+	    self.writeAddress(value)
+	if address == 0x2007:
+	    self.writeData(value)
+	if address == 0x4014:
+	    self.writeDMA(value)
+
+    def writeControl(self, ctrl: int):
+        self.flagNameTable = ctrl & 3
+        self.flagIncrement = (ctrl >> 2) & 1
+        self.flagSpriteTable = (ctrl >> 3) & 1
+        self.flagBackgroundTable = (ctrl >> 4) & 1
+        self.flagSpriteSize = (ctrl >> 5) & 1
+        self.flagMasterSlave = (ctrl >> 6) & 1
+        self.nmiOutput = ((ctrl >> 7) & 1) == 1
+        self.nmiChange()
+        self.t = (self.t & 0xF3FF) | ((ctrl & 0x03) << 10)
+
+    def writeMask(self, mask: int):
+        self.flagGrayscale = mask & 1
+        self.flagShowLeftBackground = (mask >> 1) & 1
+	self.flagShowLeftSprites = (mask >> 2) & 1
+	self.flagShowBackground = (mask >> 3) & 1
+	self.flagShowSprites = (mask >> 4) & 1
+	self.flagRedTint = (mask >> 5) & 1
+	self.flagGreenTint = (mask >> 6) & 1
+	self.flagBlueTint = (mask >> 7) & 1
+
+    def readStatus(self):
+        result = self.register & 0x1F
+	result |= self.flagSpriteOverflow << 5
+	result |= self.flagSpriteZeroHit << 6
+	if self.nmiOccurred:
+	    result |= 1 << 7
+	self.nmiOccurred = false
+	self.nmiChange()
+	self.w = 0
+	return result
+        
+    def writeOAMAddress(self, oam: int):
+        self.oamAddress = oam
+
+    def writeScroll(value):
+        if self.w == 0:
+            self.t = (self.t & 0xFFE0) | (value >> 3)
+            self.x = value & 0x07
+            self.w = 1
+        else:
+            self.t = (self.t & 0x8FFF) | ((value & 0x07) << 12)
+            self.t = (self.t & 0xFC1F) | ((value & 0xF8) << 2)
+            self.w = 0
+
+    def writeAddress(value):
+        if self.w == 0:
+            self.t = (self.t & 0x80FF) | ((value & 0x3F) << 8)
+            self.w = 1
+        else:
+            self.t = (self.t & 0xFF00) | value
+            self.v = self.t
+            self.w = 0
+
+    def readData(self):
+        value = self.Read(self.v)
+        
+    def nmiChange(self):
+        nmi = self.nmiOutput and self.nmiOccured
+        if nmi and !self.nmiPrevious:
+            # uh there's apparently a long delay here
+            self.nmiDelay = 15
+        self.nmiPrevious = nmi
+
+
 # TODO: This definitely doesn't work
+'''
 class PPU:
     cpu_ram = None
     ram = None
@@ -92,3 +281,4 @@ def merge_bits(lst1, lst2):
         pair_add += [lst1[i] * 2 + lst2[i]]  # left shift lst1 bit, add to lst2 bit
     return pair_add
         
+'''

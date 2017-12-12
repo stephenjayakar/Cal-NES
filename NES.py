@@ -19,7 +19,7 @@ class NES:
         self.ram = RAM()
         self.ppu_ram = RAM()
         self.cpu = CPU(self.ram)
-        self.ppu = PPU(self.ram, self.ppu_ram)
+        self.ppu = PPU(self, self.ppu_ram)
         
         # Instructions start at 0x8000 / prg_rom
         # self.ram.mem_set(0x8000, bytearray(self.rom.prg_rom))
