@@ -1,4 +1,4 @@
-from Display import Display
+from Screen import Screen
 import random
 import pygame
 
@@ -77,8 +77,8 @@ class PPU:
     def __init__(self, nes, mem):
         self.nes = nes
         self.mem = mem
-        self.back = Display()
-        self.front = Display()
+        self.back = Screen()
+        self.front = Screen()
         self.reset()
 
     def reset(self):
@@ -128,7 +128,7 @@ class PPU:
         if address == 0x4014:
             self.writeDMA(value)
 
-    def writeControl(self, ctrl: int):
+    def writeControl(self, ctrl):
         self.flagNameTable = ctrl & 3
         self.flagIncrement = (ctrl >> 2) & 1
         self.flagSpriteTable = (ctrl >> 3) & 1
@@ -139,7 +139,7 @@ class PPU:
         self.nmiChange()
         self.t = (self.t & 0xF3FF) | ((ctrl & 0x03) << 10)
 
-    def writeMask(self, mask: int):
+    def writeMask(self, mask):
         self.flagGrayscale = mask & 1
         self.flagShowLeftBackground = (mask >> 1) & 1
         self.flagShowLeftSprites = (mask >> 2) & 1
@@ -160,7 +160,7 @@ class PPU:
         self.w = 0
         return result
         
-    def writeOAMAddress(self, oam: int):
+    def writeOAMAddress(self, oam):
         self.oamAddress = oam
 
     def readOAMData(self):
@@ -350,7 +350,6 @@ class PPU:
                 color = sprite | 0x10
             else:
                 color = background
-        # hmm
         c = Palette[self.readPalette(color % 64)]
         self.back.SetRGBA(x, y, c)
 
@@ -502,5 +501,5 @@ for i, c in enumerate(colors):
     r = (c >> 16) & 0xFF
     g = (c >> 8) & 0xFF
     b = c & 0xFF
-    Palette[i] = (r, g, b)
+    Palette[i] = pygame.Color(r, g, b, 255)
     

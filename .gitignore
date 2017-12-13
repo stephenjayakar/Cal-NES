@@ -6,3 +6,5 @@ temp
 *~
 #*
 *.asm
+*.deb
+*.cdl

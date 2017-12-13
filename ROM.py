@@ -59,7 +59,7 @@ class ROM:
             self.prg_rom = self.FILE.read(16 * 1024 * self.prg_rom_size)
 
             # The chr rom data; this might cause an overflow
-            self.chr_rom = self.FILE.read(8 * 1024 * self.chr_rom_size)
+            self.chr_rom = list(self.FILE.read(8 * 1024 * self.chr_rom_size))
 
         
         except Exception as e:

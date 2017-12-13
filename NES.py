@@ -21,6 +21,7 @@ class NES:
         self.ram = bytearray(0x10000)
         self.cpu = CPU(cpuMEM(self))
         self.ppu = PPU(self, ppuMEM(self))
+        self.surface = pygame.display.set_mode([256 * 4, 240 * 4])
         
         # Instructions start at 0x8000 / prg_rom
         # self.ram.mem_set(0x8000, bytearray(self.rom.prg_rom))
@@ -54,11 +55,16 @@ class NES:
             cpu_cycles += self.step()
         return cpu_cycles
 
-    def buffer(self):
+    def current_buffer(self):
         return self.ppu.front
 
-    def background_color(self):
-        return Palette[console.ppu.readPalette(0) % 64]
+    def update_display(self):
+        surface_buffer = self.current_buffer()
+        self.surface.blit(surface_buffer.surface, (0, 0))
+        pygame.display.update()
+
+    #def background_color(self):
+    #    return Palette[console.ppu.readPalette(0) % 64]
         
 def main():
     offset = 0
@@ -70,12 +76,12 @@ def main():
         for e in event:
             if e.type == pygame.QUIT:
                 quit()
-        if time.time() - clock_start_time >= .00000055873007359033799258341700316185:
-            clock_start_time = time.time()
-            n.step()
+        # if time.time() - clock_start_time >= .00000055873007359033799258341700316185:
+            # clock_start_time = time.time()
+        n.step()
         if time.time() - display_start_time >= .016639:
             display_start_time = time.time()
-            n.ppu.front.update()
+            n.update_display()
     print("Done")
     
 main()
