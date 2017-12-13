@@ -21,8 +21,7 @@ class cpuMEM:
             # read controller 2
             return 0
         elif address >= 0x6000:
-            # mapper
-            return 0
+            return self.nes.mapper.read_byte(address)
         else:
             print("uh oh")
         return 0
@@ -50,7 +49,9 @@ class cpuMEM:
             # io registers
             print("io registers")
         elif address >= 0x6000:
-            print("lol mappers not implemented")
+            self.nes.mapper.write_byte(address, value)
+        else:
+            print("invalid cpu write to memory")
 
 class ppuMEM:
     nes = None

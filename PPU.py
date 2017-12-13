@@ -5,7 +5,7 @@ import pygame
 
 class PPU:
     nes = None
-    ram = None
+    mem = None
     cycle = 0 # 0-340
     scanline = 0 # 0-261, 0-239=visible, 240=post, 241-260=vblank, 261=pre
     frame = 0 # frame counter
@@ -74,9 +74,9 @@ class PPU:
     # $2007 PPUDATA
     bufferedData = 0 # byte // for buffered reads
 
-    def __init__(self, nes, ram):
+    def __init__(self, nes, mem):
         self.nes = nes
-        self.ram = ram
+        self.mem = mem
         self.back = Display()
         self.front = Display()
         self.reset()
@@ -92,12 +92,12 @@ class PPU:
     def readPalette(self, address):
         if address >= 16 and address % 4 == 0:
             address -= 16
-        return ppu.paletteData[address]
-    
-    def writePalette(address, value):
+        return self.paletteData[address]
+
+    def writePalette(self, address, value):
         if address >= 16 and address % 4 == 0:
             address -= 16
-        ppu.paletteData[address] = value
+        self.paletteData[address] = value
 
     def readRegister(self, address):
         if address == 0x2002:
@@ -163,7 +163,14 @@ class PPU:
     def writeOAMAddress(self, oam: int):
         self.oamAddress = oam
 
-    def writeScroll(value):
+    def readOAMData(self):
+        return self.oamData[self.oamAddress]
+
+    def writeOAMData(self, value):
+        self.oamData[self.oamAddress] = value
+        self.oamAddress += 1
+
+    def writeScroll(self, value):
         if self.w == 0:
             self.t = (self.t & 0xFFE0) | (value >> 3)
             self.x = value & 0x07
@@ -173,7 +180,7 @@ class PPU:
             self.t = (self.t & 0xFC1F) | ((value & 0xF8) << 2)
             self.w = 0
 
-    def writeAddress(value):
+    def writeAddress(self, value):
         if self.w == 0:
             self.t = (self.t & 0x80FF) | ((value & 0x3F) << 8)
             self.w = 1
@@ -183,13 +190,13 @@ class PPU:
             self.w = 0
 
     def readData(self):
-        value = self.ram.read_byte(self.v)
+        value = self.mem.read_byte(self.v)
         if self.v % 0x4000 < 0x3F00:
             buffered = self.bufferedData
             self.bufferedData = value
             value = buffered
         else:
-            self.bufferedData = self.ram.read_byte(self.v - 0x1000)
+            self.bufferedData = self.mem.read_byte(self.v - 0x1000)
         # increment address
         if self.flagIncrement == 0:
             self.v += 1
@@ -198,7 +205,7 @@ class PPU:
         return value
 
     def writeData(self, value):
-        self.ram.write_byte(self.v, value)
+        self.mem.write_byte(self.v, value)
         if self.flagIncrement == 0:
             self.v += 1
         else:
@@ -245,7 +252,7 @@ class PPU:
         self.v = (self.v & 0x841F) | (self.t & 0x7BE0)    
         
     def nmiChange(self):
-        nmi = self.nmiOutput and self.nmiOccured
+        nmi = self.nmiOutput and self.nmiOccurred
         if nmi and not self.nmiPrevious:
             # uh there's apparently a long delay here
             self.nmiDelay = 15
@@ -262,7 +269,7 @@ class PPU:
 
     def fetchNameTableByte(self):
         address = 0x2000 | (self.v & 0x0FFF)
-        self.nameTableByte = self.ram.read_byte(address)
+        self.nameTableByte = self.mem.read_byte(address)
 
     def fetchAttributeTableByte(self):
         address = 0x23C0 | (self.v & 0x0C00) | ((self.v >> 4) & 0x38) | ((self.v >> 2) & 0x07)
@@ -347,7 +354,7 @@ class PPU:
         c = Palette[self.readPalette(color % 64)]
         self.back.SetRGBA(x, y, c)
 
-    def fetchSpritePattern(i, row):
+    def fetchSpritePattern(self, i, row):
         tile = self.oamData[i * 4 + 1]
         attributes = self.oamData[i * 4 + 2]
         address = 0
@@ -482,93 +489,18 @@ class PPU:
             self.flagSpriteZeroHit = 0
             self.flagSpriteOverflow = 0
 
-# TODO: This definitely doesn't work
-'''
-class PPU:
-    cpu_ram = None
-    ram = None
-    pixel_width, pixel_height = 256, 240
-    display = None
-    current_nametable = None
-    nametable_index = 0
+Palette = [0] * 64
+colors = [0x666666, 0x002A88, 0x1412A7, 0x3B00A4, 0x5C007E, 0x6E0040, 0x6C0600, 0x561D00,
+		0x333500, 0x0B4800, 0x005200, 0x004F08, 0x00404D, 0x000000, 0x000000, 0x000000,
+		0xADADAD, 0x155FD9, 0x4240FF, 0x7527FE, 0xA01ACC, 0xB71E7B, 0xB53120, 0x994E00,
+		0x6B6D00, 0x388700, 0x0C9300, 0x008F32, 0x007C8D, 0x000000, 0x000000, 0x000000,
+		0xFFFEFF, 0x64B0FF, 0x9290FF, 0xC676FF, 0xF36AFF, 0xFE6ECC, 0xFE8170, 0xEA9E22,
+		0xBCBE00, 0x88D800, 0x5CE430, 0x45E082, 0x48CDDE, 0x4F4F4F, 0x000000, 0x000000,
+		0xFFFEFF, 0xC0DFFF, 0xD3D2FF, 0xE8C8FF, 0xFBC2FF, 0xFEC4EA, 0xFECCC5, 0xF7D8A5,
+		0xE4E594, 0xCFEF96, 0xBDF4AB, 0xB3F3CC, 0xB5EBF2, 0xB8B8B8, 0x000000, 0x000000]
+for i, c in enumerate(colors):
+    r = (c >> 16) & 0xFF
+    g = (c >> 8) & 0xFF
+    b = c & 0xFF
+    Palette[i] = (r, g, b)
     
-    def __init__(self, cpu_ram: RAM, ppu_ram: RAM):
-        self.cpu_ram = cpu_ram
-        self.ram = ppu_ram
-        self.display = Display()
-
-    # A tile is 16 bytes
-    def tick(self):
-        # PPU_CTRL = self.cpu_ram.mem_get(0x2000, 8)
-        # ppu_ctrl_r1, ppu_ctrl_r2, ppu_status, ppu_spr_addr, ppu_spr_data, ppu_scroll_reg, ppu_address, ppu_data = PPU_CTRL
-        # ppu_status = ppu_status | 0x80
-        # self.cpu_ram.mem_set(0x2002, bytes([ppu_status]))        
-        i = self.nametable_index
-        if not self.current_nametable:
-            self.current_nametable = self.ram.mem_get(0x2400, 960)
-            self.nametable_index = 0
-        if i < len(self.current_nametable):
-            tile = self.ram.mem_get(self.current_nametable[i] * 64, 16)
-            tile = combine_planes(tile)
-            self.display.draw_tile(tile, i % 16, i // 16)
-            self.nametable_index += 1
-        
-    def draw_pattern(self, offset: int):
-        tile1 = combine_planes(self.ram.mem_get(offset, 16))
-        self.display.draw_tile(tile1, 0, 0)
-
-    def update_display(self):
-        pygame.display.update()
-
-
-def combine_planes(b: bytes):
-    """Takes a string of bytes for two planes and returns one merged list.
-        >>> combine_planes(b'\x03\x0f\x1f\x1f\x1c$&f\x00\x00\x00\x00\x1f??\x7f')
-        [0, 0, 0, 0, 0, 0, 2, 2,
-         0, 0, 0, 0, 2, 2, 2, 2,
-         0, 0, 0, 2, 2, 2, 2, 2,
-         0, 0, 0, 2, 2, 2, 2, 2,
-         0, 0, 0, 3, 3, 3, 1, 1,
-         0, 0, 3, 1, 1, 3, 1, 1,
-         0, 0, 3, 1, 1, 3, 3, 1,
-         0, 3, 3, 1, 1, 3, 3, 1]
-        """
-    b_bin = [zero_left_extend(bin(x)[2:], 8) for x in b]  # bitstring zero-padded
-    plane1_splice = b_bin[0:len(b_bin) // 2]
-    plane2_splice = b_bin[len(b_bin) // 2:]
-    plane1 = [str_to_lst(s) for s in plane1_splice]  # lists of bits
-    plane2 = [str_to_lst(s) for s in plane2_splice]
-
-    merge_all = []
-    for i in range(len(plane1)):
-        merge_all += merge_bits(plane1[i], plane2[i])
-    return merge_all
-
-def zero_left_extend(b, n):
-    """Pads a bitstring with zeros on the left and returns a bitstring of n bits.
-        >>> zero_left_extend('001101', 8)
-        '00001101'
-    """
-    if len(b) == n:
-        return b
-    zeros = n - len(b)
-    return '0' * zeros + b
-
-def str_to_lst(str):
-    """Converts a bitstring to a list of ints.
-    >>> str_to_lst('10010001')
-    [1, 0, 0, 1, 0, 0, 0, 1]
-    """
-    return [int(s) for s in str]
-
-def merge_bits(lst1, lst2):
-    """Takes two lists of integers and merges them pairwise.
-    >>> merge_bits([0, 1, 1, 0], [0, 1, 0, 1])
-    [0, 3, 2, 1]
-    """
-    pair_add = []
-    for i in range(len(lst1)):
-        pair_add += [lst1[i] * 2 + lst2[i]]  # left shift lst1 bit, add to lst2 bit
-    return pair_add
-        
-'''

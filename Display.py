@@ -16,7 +16,7 @@ class Display:
         pygame.display.update()
 
     def SetRGBA(self, x, y, c):
-        print(c)
+        self.screen.set_at((x, y), pygame.Color(c[0], c[1], c[2], 255))
 
     def update(self):
         pygame.display.update()

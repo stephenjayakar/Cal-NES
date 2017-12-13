@@ -13,16 +13,19 @@ class ROM:
     chr_rom_size = 0
     prg_rom = None
     chr_rom = None
+    sram = None
     flags6 = 0
     flags7 = 0
-    mapper = 0
+    # to detect incorrect mappers?
+    mapper = -1
     four_screen = False
     trainer = False
     battery = False
     # true for vertical
     mirroring = False
     
-    def __init__(self, filename: str):
+    def __init__(self, filename):
+        self.sram = [0] * 0x2000
         try:
             FILE = open(filename, "rb")
             self.FILE = FILE
@@ -46,14 +49,17 @@ class ROM:
             self.flags7 = self.header[7]
 
             # setting values from flags6 and 7
-            mapper = (self.flags7 & 0xF0) | ((self.flags6 & 0xF0) >> 4)
+            self.mapper = (self.flags7 & 0xF0) | ((self.flags6 & 0xF0) >> 4)
+            self.four_screen = bool(self.flags6 & 0b1000 >> 3)
+            self.trainer = bool(self.flags6 & 0b0100 >> 2)
+            self.battery = bool(self.flags6 & 0b0010 >> 1)
+            self.mirroring = bool(self.flags6 & 0b1)            
             
             # The prg rom data
             self.prg_rom = self.FILE.read(16 * 1024 * self.prg_rom_size)
 
             # The chr rom data; this might cause an overflow
-            self.chr_rom = self.FILE.read()
-            # self.chr_rom = self.FILE.read(8 * 1024 * self.chr_rom_size)
+            self.chr_rom = self.FILE.read(8 * 1024 * self.chr_rom_size)
 
         
         except Exception as e:

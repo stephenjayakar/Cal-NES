@@ -2,6 +2,7 @@ from ROM import ROM
 from RAM import cpuMEM, ppuMEM
 from CPU import CPU
 from PPU import PPU
+from Mapper import create_mapper
 import pygame
 import time
 import os
@@ -9,13 +10,14 @@ import os
 class NES:
     rom = None
     ram = None
-    ppu_ram = None
     cpu = None
     ppu = None
     apu = None
+    mapper = None
     
     def __init__(self, rom_name):
         self.rom = ROM(rom_name)
+        self.mapper = create_mapper(self.rom)
         self.ram = bytearray(0x10000)
         self.cpu = CPU(cpuMEM(self))
         self.ppu = PPU(self, ppuMEM(self))
@@ -34,10 +36,11 @@ class NES:
 
     def step(self):
         cpu_cycles = self.cpu.step()
-        ppu_cycles = cpu_cycles * 3
+        # this was changed from 3 -> 9
+        ppu_cycles = cpu_cycles * 9
         for i in range(ppu_cycles):
             self.ppu.step()
-            # mapper?
+            self.mapper.step()
         for i in range(cpu_cycles):
             # step the apu
             pass 
@@ -57,8 +60,7 @@ class NES:
     def background_color(self):
         return Palette[console.ppu.readPalette(0) % 64]
         
-        
-if __name__ == "__main__":
+def main():
     offset = 0
     n = NES("zelda_test.nes")
     display_start_time = time.time()
@@ -75,3 +77,8 @@ if __name__ == "__main__":
             display_start_time = time.time()
             n.ppu.front.update()
     print("Done")
+    
+main()
+
+if __name__ == "__main__":
+    main()

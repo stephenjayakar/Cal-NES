@@ -1,6 +1,13 @@
 from enum import Enum
 
+# interrupts
+class Interrupt(Enum):
+    interruptNone = 0
+    interruptNMI = 1
+    interruptIRQ = 2
+
 class CPU:
+    done = False
     # Random Access Memory
     mem = None
     # Program Counter
@@ -20,16 +27,10 @@ class CPU:
 
     stall = 0
 
-    # interrupts
-    class Interrupt(Enum):
-        interruptNone = 0
-        interruptNMI = 1 
-        interruptIRQ = 2 
-
-    def __init__(self, mem, PC_START = 0x8000, SP_START = 0x200):
+    def __init__(self, mem, PC_START = 0x8000, SP_START = 0xFD):
         self.mem = mem
-        self.PC = PC_START
-        self.SP = SP_START #not sure if this should be 100
+        self.PC = self.read16(0xFFFC)
+        self.SP = SP_START
 
         self.reg = {"A": bytearray([0]),
                     "X": bytearray([0]),
@@ -99,15 +100,37 @@ class CPU:
                                      0x9A: self.TXS,
                                      0x98: self.TYA
                                     }
+        
+    def reset(self):
+        self.PC = self.read16(0xFFFC)
+        self.SP = 0xFD
+        self.setflags(0x24)
 
+    def read16(self, address):        
+        return (self.mem.read_byte(address + 1) << 8) | self.mem.read_byte(address)
+
+    def setflags(self, flags):
+        self.C = (flags >> 0) & 1
+        self.Z = (flags >> 1) & 1
+        self.I = (flags >> 2) & 1
+        self.D = (flags >> 3) & 1
+        self.B = (flags >> 4) & 1
+        self.U = (flags >> 5) & 1
+        self.V = (flags >> 6) & 1
+        self.N = (flags >> 7) & 1
 
     def run_instruction(self):
+        if self.done:
+            return None
         opcode = self.get_PC_byte()
         if opcode not in CPU.opcode_to_instruction:
-            return self.invalid_instruction(opcode)
+            # for now, terminates the program
+            # return self.invalid_instruction(opcode)
+            self.done = True
+            return None
         f = CPU.opcode_to_instruction[opcode]
-        print("opcode: " + hex(opcode))
-        print("instruction: " + str(f))
+        # print("opcode: " + hex(opcode))
+        # print("instruction: " + str(f))
         # Do we actually need the output?
         res = f(opcode)
 
@@ -516,7 +539,7 @@ class CPU:
         else:
             return self.invalid_instruction(opcode)
 
-        result = self.get_mem(addr) - 1
+        result = (self.get_mem(addr) - 1) & 0xFF
         self.set_mem(addr, result)
         self.set_Z(result == 0)
         self.set_N(result >> 7)
