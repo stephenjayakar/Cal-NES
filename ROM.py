@@ -15,6 +15,12 @@ class ROM:
     chr_rom = None
     flags6 = 0
     flags7 = 0
+    mapper = 0
+    four_screen = False
+    trainer = False
+    battery = False
+    # true for vertical
+    mirroring = False
     
     def __init__(self, filename: str):
         try:
@@ -39,7 +45,8 @@ class ROM:
             # Bitfield 2
             self.flags7 = self.header[7]
 
-            # Right now, we are ignoring the existence of Trainer!
+            # setting values from flags6 and 7
+            mapper = (self.flags7 & 0xF0) | ((self.flags6 & 0xF0) >> 4)
             
             # The prg rom data
             self.prg_rom = self.FILE.read(16 * 1024 * self.prg_rom_size)
@@ -47,8 +54,6 @@ class ROM:
             # The chr rom data; this might cause an overflow
             self.chr_rom = self.FILE.read()
             # self.chr_rom = self.FILE.read(8 * 1024 * self.chr_rom_size)
-
-            # self.rest = self.FILE.read()
 
         
         except Exception as e:

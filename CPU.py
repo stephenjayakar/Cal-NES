@@ -136,7 +136,7 @@ class CPU:
         return self.mem.read_byte(addr)
 
     def set_mem(self, addr, value):
-        self.mem.write_byte(addr, byte)
+        self.mem.write_byte(addr, value)
 
     def get_PC_byte(self):
         byte = self.get_mem(self.PC)

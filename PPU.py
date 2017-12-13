@@ -79,6 +79,7 @@ class PPU:
         self.ram = ram
         self.back = Display()
         self.front = Display()
+        self.reset()
 
     def reset(self):
         self.cycle = 340
@@ -108,7 +109,7 @@ class PPU:
         return 0
 
     # consider rewriting this with hashing
-    def writeRegister(address, value):
+    def writeRegister(self, address, value):
         self.register = value
         if address == 0x2000:
             self.writeControl(value)
