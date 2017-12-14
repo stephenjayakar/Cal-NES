@@ -1,10 +1,13 @@
 from enum import Enum
 
+def pages_differ(a, b):
+    return (a & 0xFF00) != (b & 0xFF00)
+
 # interrupts
 class Interrupt(Enum):
-    interruptNone = 0
-    interruptNMI = 1
-    interruptIRQ = 2
+    none = 0
+    NMI = 1
+    IRQ = 2
 
 class CPU:
     done = False
@@ -27,6 +30,12 @@ class CPU:
 
     stall = 0
 
+    cycles = 0
+
+    interrupt = Interrupt.none
+
+    page_crossed = False
+
     def __init__(self, mem, PC_START = 0x8000, SP_START = 0xFD):
         self.mem = mem
         self.PC = self.read16(0xFFFC)
@@ -35,71 +44,7 @@ class CPU:
         self.reg = {"A": bytearray([0]),
                     "X": bytearray([0]),
                     "Y": bytearray([0])}
-
-        CPU.opcode_to_instruction = {0x69: self.ADC, 0x65: self.ADC, 0x75: self.ADC, 0x6D: self.ADC, 0x7D: self.ADC,
-                                     0x79: self.ADC, 0x61: self.ADC, 0x71: self.ADC,
-                                     0x29: self.AND, 0x25: self.AND, 0x35: self.AND, 0x2D: self.AND, 0x3D: self.AND,
-                                     0x39: self.AND, 0x21: self.AND, 0x31: self.AND,
-                                     0x0A: self.ASL, 0x06: self.ASL, 0x16: self.ASL, 0x0E: self.ASL, 0x1E: self.ASL,
-                                     0x90: self.BCC, 0xB0: self.BCS,
-                                     0xF0: self.BEQ,
-                                     0x24: self.BIT, 0x2C: self.BIT,
-                                     0x30: self.BMI,
-                                     0xD0: self.BNE,
-                                     0x10: self.BPL,
-                                     0x00: self.BRK,
-                                     0x50: self.BVC,
-                                     0x70: self.BVS,
-                                     0x18: self.CLC,
-                                     0xD8: self.CLD,
-                                     0x58: self.CLI,
-                                     0xB8: self.CLV,
-                                     0xC9: self.CMP, 0xC5: self.CMP, 0xD5: self.CMP, 0xCD: self.CMP, 0xDD: self.CMP,
-                                     0xD9: self.CMP, 0xC1: self.CMP, 0xD1: self.CMP,
-                                     0xE0: self.CPX, 0xE4: self.CPX, 0xEC: self.CPX,
-                                     0xC0: self.CPY, 0xC4: self.CPY, 0xCC: self.CPY,
-                                     0xC6: self.DEC, 0xD6: self.DEC, 0xCE: self.DEC, 0xDE: self.DEC,
-                                     0xCA: self.DEX,
-                                     0x88: self.DEY,
-                                     0x49: self.EOR, 0x45: self.EOR, 0x55: self.EOR, 0x4D: self.EOR, 0x5D: self.EOR,
-                                     0x59: self.EOR, 0x41: self.EOR, 0x51: self.EOR,
-                                     0xE6: self.INC, 0xF6: self.INC, 0xEE: self.INC, 0xFE: self.INC,
-                                     0xE8: self.INX,
-                                     0xC8: self.INY,
-                                     0x4C: self.JMP, 0x6C: self.JMP,
-                                     0x20: self.JSR,
-                                     0xA9: self.LDA, 0xA5: self.LDA, 0xB5: self.LDA, 0xAD: self.LDA, 0xBD: self.LDA,
-                                     0xB9: self.LDA, 0xA1: self.LDA, 0xB1: self.LDA,
-                                     0xA2: self.LDX, 0xA6: self.LDX, 0xB6: self.LDX, 0xAE: self.LDX, 0xBE: self.LDX,
-                                     0xA0: self.LDY, 0xA4: self.LDY, 0xB4: self.LDY, 0xAC: self.LDY, 0xBC: self.LDY,
-                                     0x4A: self.LSR, 0x46: self.LSR, 0x56: self.LSR, 0x4E: self.LSR, 0x5E: self.LSR,
-                                     0xEA: self.NOP,
-                                     0x09: self.ORA, 0x05: self.ORA, 0x15: self.ORA, 0x0D: self.ORA, 0x1D: self.ORA,
-                                     0x19: self.ORA, 0x01: self.ORA, 0x11: self.ORA,
-                                     0x48: self.PHA,
-                                     0x08: self.PHP,
-                                     0x68: self.PLA,
-                                     0x28: self.PLP,
-                                     0x2A: self.ROL, 0x26: self.ROL, 0x36: self.ROL, 0x2E: self.ROL, 0x3E: self.ROL,
-                                     0x6A: self.ROR, 0x66: self.ROR, 0x76: self.ROR, 0x6E: self.ROR, 0x7E: self.ROR,
-                                     0x40: self.RTI,
-                                     0x60: self.RTS,
-                                     0xE9: self.SBC, 0xE5: self.SBC, 0xF5: self.SBC, 0xED: self.SBC, 0xFD: self.SBC,
-                                     0xF9: self.SBC, 0xE1: self.SBC, 0xF1: self.SBC,
-                                     0x38: self.SEC,
-                                     0xF8: self.SED,
-                                     0x78: self.SEI,
-                                     0x85: self.STA, 0x95: self.STA, 0x8D: self.STA, 0x9D: self.STA, 0x99: self.STA,
-                                     0x81: self.STA, 0x91: self.STA,
-                                     0x86: self.STX, 0x96: self.STX, 0x8E: self.STX,
-                                     0x84: self.STY, 0x94: self.STY, 0x8C: self.STY,
-                                     0xAA: self.TAX,
-                                     0xA8: self.TAY,
-                                     0xBA: self.TSX,
-                                     0x8A: self.TXA,
-                                     0x9A: self.TXS,
-                                     0x98: self.TYA
-                                    }
+        self.create_opcode_table()
         
     def reset(self):
         self.PC = self.read16(0xFFFC)
@@ -119,41 +64,75 @@ class CPU:
         self.V = (flags >> 6) & 1
         self.N = (flags >> 7) & 1
 
-    def run_instruction(self):
-        if self.done:
-            return None
-        opcode = self.get_PC_byte()
-        if opcode not in CPU.opcode_to_instruction:
-            # for now, terminates the program
-            # return self.invalid_instruction(opcode)
-            self.done = True
-            return None
-        f = CPU.opcode_to_instruction[opcode]
-        # print("opcode: " + hex(opcode))
-        # print("instruction: " + str(f))
-        # Do we actually need the output?
-        res = f(opcode)
+    # def run_instruction(self):
+    #     if self.done:
+    #         return None
+    #     opcode = self.get_PC_byte()
+    #     if opcode not in self.opcode_to_instruction:
+    #         # for now, terminates the program
+    #         self.done = True
+    #         return None
+    #     f = self.opcode_to_instruction[opcode]
+    #     res = f(opcode)
 
-    # Executes a single instruction
+    # Executes a single instruction; replacing run_instruction for now without error handling
     def step(self):
         if self.stall > 0:
             self.stall =- 1
             return 1
-        cycles = 1 # self.cycles # what does this do haaaaaha
-        self.run_instruction()
-        return cycles
-        
-    # def run_all(self):
-    #     for i in range(10):
-    #         printfram(self._cpu_dump())
-    #         self.run_instruction()
+        cycles = self.cycles
+        if self.interrupt == Interrupt.NMI:
+            self.nmi()
+        elif self.interrupt == Interrupt.IRQ:
+            self.irq()
+        self.interrupt = Interrupt.none
 
+        opcode = self.get_PC_byte()
+        self.cycles += instruction_cycles[opcode]
+        if opcode not in self.opcode_to_instruction:
+            return self.cycles - cycles
+        f = self.opcode_to_instruction[opcode]
+        res = f(opcode)
+        if self.page_crossed:
+            self.cycles += instruction_page_cycles[opcode]
+        return (self.cycles - cycles)
+
+    def add_branch_cycles(self, address):
+        self.cycles += 1
+        if pages_differ(self.PC, address):
+            self.cycles += 1
+        
     def triggerNMI(self):
-        self.interrupt = Interrupt.interruptNMI
+        self.interrupt = Interrupt.NMI
 
     def triggerIRQ(self):
         if self.I == 0:
-            self.interrupt = interruptIRQ
+            self.interrupt = Interrupt.IRQ
+
+    def nmi(self):
+        bytes_to_stack = bytearray([self.PC & 0xFF, self.PC >> 8])
+        pointer = self.SP
+        for b in bytes_to_stack:
+            self.mem.write_byte(pointer, b)
+            pointer += 1
+        # not implemented
+        self.PHP(0x08)
+        self.PC = self.read16(0xFFFA)
+        self.I = 1
+        self.cycles += 7
+
+    def irq(self):
+        bytes_to_stack = bytearray([self.PC & 0xFF, self.PC >> 8])
+        pointer = self.SP
+        for b in bytes_to_stack:
+            self.mem.write_byte(pointer, b)
+            pointer += 1
+        # not implemented
+        self.PHP(0x08)
+        self.PC = self.read16(0xFFFE)
+        self.I = 1
+        self.cycles += 7
+        
 
     def get_mem(self, addr):
         return self.mem.read_byte(addr)
@@ -194,11 +173,14 @@ class CPU:
         return (upper << 8 | lower) + offset
 
     def get_absolute_addr_x(self):
-        return self.get_absolute_addr(self.X)
+        address = self.get_absolute_addr(self.X)
+        self.page_crossed = pages_differ(address - self.X, address)
+        return address
 
     def get_absolute_addr_y(self):
-        return self.get_absolute_addr(self.Y)
-
+        address = self.get_absolute_addr(self.Y)
+        self.page_crossed = pages_differ(address - self.Y, address)
+        return address
 
     def get_absolute(self, offset=0):
         lower = self.get_PC_byte()
@@ -234,7 +216,9 @@ class CPU:
         return self.get_indirect_addr(self.X)
 
     def get_indirect_addr_y(self):
-        return self.get_indirect_addr(self.Y)
+        address = self.get_indirect_addr(self.Y)
+        self.page_crossed = pages_differ(address - (self.Y), address)
+        return address
 
 
     def get_indirect(self, offset=0):
@@ -338,6 +322,7 @@ class CPU:
         if opcode == 0x90:  #Relative, 2, 2
             if not self.C():
                 self.PC = addr
+                self.add_branch_cycles(addr)
         else:
             return self.invalid_instruction(opcode)
 
@@ -347,6 +332,7 @@ class CPU:
         if opcode == 0xB0:  #Relative, 2, 2
             if self.C():
                 self.PC = addr
+                self.add_branch_cycles(addr)
         else:
             return self.invalid_instruction(opcode)
 
@@ -356,6 +342,7 @@ class CPU:
         if opcode == 0xF0:  #Relative, 2, 2
             if self.Z():
                 self.PC = addr
+                self.add_branch_cycles(addr)
         else:
             return self.invalid_instruction(opcode)
 
@@ -380,6 +367,7 @@ class CPU:
         if opcode == 0x30:  #Relative, 2, 2
             if self.N():
                 self.PC = addr
+                self.add_branch_cycles(addr)
         else:
             return self.invalid_instruction(opcode)
 
@@ -389,6 +377,7 @@ class CPU:
         if opcode == 0xD0:  #Relative, 2, 2
             if not self.Z():
                 self.PC = addr
+                self.add_branch_cycles(addr)                
         else:
             return self.invalid_instruction(opcode)
 
@@ -398,6 +387,7 @@ class CPU:
         if opcode == 0x10:  #Relative, 2, 2
             if not self.N():
                 self.PC = addr
+                self.add_branch_cycles(addr)                
         else:
             return self.invalid_instruction(opcode)
 
@@ -406,9 +396,9 @@ class CPU:
         if opcode == 0x00:  #Implied, 1, 7
             # Push PC and P on stack
             self.SP -= 3
-            bytes_to_stack = bytearray([self.P, self.PC & 0xFF, self.PC >> 8])
-            # self.ram.mem_set(self.SP, bytes_to_stack)
-            pointer = self.SP
+            proc = self.P % 256            
+            bytes_to_stack = bytearray([proc, self.PC & 0xFF, self.PC >> 8])
+            pointer = self.SP + 1
             for b in bytes_to_stack:
                 self.mem.write_byte(pointer, b)
                 pointer += 1
@@ -428,6 +418,7 @@ class CPU:
         if opcode == 0x50:  #Relative, 2, 2
             if not self.V():
                 self.PC = addr
+                self.add_branch_cycles(addr)                
         else:
             return self.invalid_instruction(opcode)
 
@@ -437,6 +428,7 @@ class CPU:
         if opcode == 0x70:  #Relative, 2, 2
             if self.V():
                 self.PC = addr
+                self.add_branch_cycles(addr)                
         else:
             return self.invalid_instruction(opcode)
 
@@ -737,10 +729,10 @@ class CPU:
 
     def NOP(self, opcode):
         # ***** NOP - No Operation *****
-        if opcode == 0xEA:  # Implied, 1, 2
-            pass
-        else:
-            return self.invalid_instruction(opcode)
+        # if opcode == 0xEA:  # Implied, 1, 2
+        pass
+        # else:
+        #     return self.invalid_instruction(opcode)
 
     def ORA(self, opcode):
         #***** ORA - Logical Inclusive OR *****
@@ -777,11 +769,12 @@ class CPU:
 
     def PHP(self, opcode):
         #***** PHP - Push Processor Status *****
-        if opcode == 0x08:  # Implied, 1, 3
-            self.SP -= 1
-            self.set_mem(self.SP, self.P)
-        else:
-            return self.invalid_instruction(opcode)
+        # if opcode == 0x08:  # Implied, 1, 3
+        self.SP -= 1
+        proc = self.P % 256
+        self.set_mem(self.SP, proc)
+        # else:
+        #     return self.invalid_instruction(opcode)
 
     def PLA(self, opcode):
         #***** PLA - Pull Accumulator *****
@@ -863,7 +856,7 @@ class CPU:
             self.P = loaded[0]
             lower = loaded[1]
             upper = loaded[2]
-            self.PC = (upper << 8) | lower
+            self.PC = (upper << 8) | (lower & 0xFF)
             self.SP += 3
         else:
             return self.invalid_instruction(opcode)
@@ -1101,21 +1094,87 @@ class CPU:
         else:
             return num
 
-
+    def create_opcode_table(self):
+        self.opcode_to_instruction = {0x69: self.ADC, 0x65: self.ADC, 0x75: self.ADC, 0x6D: self.ADC, 0x7D: self.ADC,
+                                      0x79: self.ADC, 0x61: self.ADC, 0x71: self.ADC,
+                                      0x29: self.AND, 0x25: self.AND, 0x35: self.AND, 0x2D: self.AND, 0x3D: self.AND,
+                                      0x39: self.AND, 0x21: self.AND, 0x31: self.AND,
+                                      0x0A: self.ASL, 0x06: self.ASL, 0x16: self.ASL, 0x0E: self.ASL, 0x1E: self.ASL,
+                                      0x90: self.BCC, 0xB0: self.BCS,
+                                      0xF0: self.BEQ,
+                                      0x24: self.BIT, 0x2C: self.BIT,
+                                      0x30: self.BMI,
+                                      0xD0: self.BNE,
+                                      0x10: self.BPL,
+                                      0x00: self.BRK,
+                                      0x50: self.BVC,
+                                      0x70: self.BVS,
+                                      0x18: self.CLC,
+                                      0xD8: self.CLD,
+                                      0x58: self.CLI,
+                                      0xB8: self.CLV,
+                                      0xC9: self.CMP, 0xC5: self.CMP, 0xD5: self.CMP, 0xCD: self.CMP, 0xDD: self.CMP,
+                                      0xD9: self.CMP, 0xC1: self.CMP, 0xD1: self.CMP,
+                                      0xE0: self.CPX, 0xE4: self.CPX, 0xEC: self.CPX,
+                                      0xC0: self.CPY, 0xC4: self.CPY, 0xCC: self.CPY,
+                                      0xC6: self.DEC, 0xD6: self.DEC, 0xCE: self.DEC, 0xDE: self.DEC,
+                                      0xCA: self.DEX,
+                                      0x88: self.DEY,
+                                      0x49: self.EOR, 0x45: self.EOR, 0x55: self.EOR, 0x4D: self.EOR, 0x5D: self.EOR,
+                                      0x59: self.EOR, 0x41: self.EOR, 0x51: self.EOR,
+                                      0xE6: self.INC, 0xF6: self.INC, 0xEE: self.INC, 0xFE: self.INC,
+                                      0xE8: self.INX,
+                                      0xC8: self.INY,
+                                      0x4C: self.JMP, 0x6C: self.JMP,
+                                      0x20: self.JSR,
+                                      0xA9: self.LDA, 0xA5: self.LDA, 0xB5: self.LDA, 0xAD: self.LDA, 0xBD: self.LDA,
+                                      0xB9: self.LDA, 0xA1: self.LDA, 0xB1: self.LDA,
+                                      0xA2: self.LDX, 0xA6: self.LDX, 0xB6: self.LDX, 0xAE: self.LDX, 0xBE: self.LDX,
+                                      0xA0: self.LDY, 0xA4: self.LDY, 0xB4: self.LDY, 0xAC: self.LDY, 0xBC: self.LDY,
+                                      0x4A: self.LSR, 0x46: self.LSR, 0x56: self.LSR, 0x4E: self.LSR, 0x5E: self.LSR,
+                                      0xEA: self.NOP,
+                                      0x04: self.NOP,
+                                      0x09: self.ORA, 0x05: self.ORA, 0x15: self.ORA, 0x0D: self.ORA, 0x1D: self.ORA,
+                                      0x19: self.ORA, 0x01: self.ORA, 0x11: self.ORA,
+                                      0x48: self.PHA,
+                                      0x08: self.PHP,
+                                      0x68: self.PLA,
+                                      0x28: self.PLP,
+                                      0x2A: self.ROL, 0x26: self.ROL, 0x36: self.ROL, 0x2E: self.ROL, 0x3E: self.ROL,
+                                      0x6A: self.ROR, 0x66: self.ROR, 0x76: self.ROR, 0x6E: self.ROR, 0x7E: self.ROR,
+                                      0x40: self.RTI,
+                                      0x60: self.RTS,
+                                      0xE9: self.SBC, 0xE5: self.SBC, 0xF5: self.SBC, 0xED: self.SBC, 0xFD: self.SBC,
+                                      0xF9: self.SBC, 0xE1: self.SBC, 0xF1: self.SBC,
+                                      0x38: self.SEC,
+                                      0xF8: self.SED,
+                                      0x78: self.SEI,
+                                      0x85: self.STA, 0x95: self.STA, 0x8D: self.STA, 0x9D: self.STA, 0x99: self.STA,
+                                      0x81: self.STA, 0x91: self.STA,
+                                      0x86: self.STX, 0x96: self.STX, 0x8E: self.STX,
+                                      0x84: self.STY, 0x94: self.STY, 0x8C: self.STY,
+                                      0xAA: self.TAX,
+                                      0xA8: self.TAY,
+                                      0xBA: self.TSX,
+                                      0x8A: self.TXA,
+                                      0x9A: self.TXS,
+                                      0x98: self.TYA
+        }
+        
     # Prints contents of registers
-    def _cpu_dump(self) -> str:
+    def _cpu_dump(self):
         return "PC: " + str(self.PC) + "\n" + "Reg: " + str(self.reg) + "\n" + "Processor Status: " + bin(self.P)
     
-    def __str__(self) -> str:
+    def __str__(self):
         return self._cpu_dump()
 
 
     @property
-    def A(self) -> bytes:
+    def A(self):
         return self.reg["A"][0]
 
     @A.setter
-    def A(self, value) -> None:
+    def A(self, value):
         self.reg["A"][0] = value % 256
 
     @property
@@ -1133,3 +1192,39 @@ class CPU:
     @Y.setter
     def Y(self, value) -> None:
         self.reg["Y"][0] = value % 256
+
+# mapping from opcode to num_cycles        
+instruction_cycles = [7, 6, 2, 8, 3, 3, 5, 5, 3, 2, 2, 2, 4, 4, 6, 6,
+	              2, 5, 2, 8, 4, 4, 6, 6, 2, 4, 2, 7, 4, 4, 7, 7,
+	              6, 6, 2, 8, 3, 3, 5, 5, 4, 2, 2, 2, 4, 4, 6, 6,
+	              2, 5, 2, 8, 4, 4, 6, 6, 2, 4, 2, 7, 4, 4, 7, 7,
+	              6, 6, 2, 8, 3, 3, 5, 5, 3, 2, 2, 2, 3, 4, 6, 6,
+	              2, 5, 2, 8, 4, 4, 6, 6, 2, 4, 2, 7, 4, 4, 7, 7,
+	              6, 6, 2, 8, 3, 3, 5, 5, 4, 2, 2, 2, 5, 4, 6, 6,
+	              2, 5, 2, 8, 4, 4, 6, 6, 2, 4, 2, 7, 4, 4, 7, 7,
+	              2, 6, 2, 6, 3, 3, 3, 3, 2, 2, 2, 2, 4, 4, 4, 4,
+	              2, 6, 2, 6, 4, 4, 4, 4, 2, 5, 2, 5, 5, 5, 5, 5,
+	              2, 6, 2, 6, 3, 3, 3, 3, 2, 2, 2, 2, 4, 4, 4, 4,
+	              2, 5, 2, 5, 4, 4, 4, 4, 2, 4, 2, 4, 4, 4, 4, 4,
+	              2, 6, 2, 8, 3, 3, 5, 5, 2, 2, 2, 2, 4, 4, 6, 6,
+	              2, 5, 2, 8, 4, 4, 6, 6, 2, 4, 2, 7, 4, 4, 7, 7,
+	              2, 6, 2, 8, 3, 3, 5, 5, 2, 2, 2, 2, 4, 4, 6, 6,
+	              2, 5, 2, 8, 4, 4, 6, 6, 2, 4, 2, 7, 4, 4, 7, 7]
+
+# how many cycles when a page is crossed
+instruction_page_cycles = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+	                   1, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 1, 1, 0, 0,
+	                   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+	                   1, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 1, 1, 0, 0,
+	                   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+	                   1, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 1, 1, 0, 0,
+	                   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+	                   1, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 1, 1, 0, 0,
+	                   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+	                   1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+	                   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+	                   1, 1, 0, 1, 0, 0, 0, 0, 0, 1, 0, 1, 1, 1, 1, 1,
+	                   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+	                   1, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 1, 1, 0, 0,
+	                   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+	                   1, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 1, 1, 0, 0]

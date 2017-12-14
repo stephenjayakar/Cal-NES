@@ -23,7 +23,7 @@ class cpuMEM:
         elif address >= 0x6000:
             return self.nes.mapper.read_byte(address)
         else:
-            print("uh oh")
+            print("bad cpu read at " + str(address))
         return 0
 
     def write_byte(self, address, value):

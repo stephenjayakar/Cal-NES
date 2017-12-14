@@ -110,6 +110,7 @@ class PPU:
 
     # consider rewriting this with hashing
     def writeRegister(self, address, value):
+        value = value & 0xFF
         self.register = value
         if address == 0x2000:
             self.writeControl(value)
@@ -168,7 +169,7 @@ class PPU:
 
     def writeOAMData(self, value):
         self.oamData[self.oamAddress] = value
-        self.oamAddress += 1
+        self.oamAddress = (self.oamAddress + 1) & 0xFF
 
     def writeScroll(self, value):
         if self.w == 0:
@@ -216,7 +217,7 @@ class PPU:
         address = value << 8
         for i in range(256):
             self.oamData[self.oamAddress] = self.nes.ram.read_byte(address)
-            self.oamAddress += 1
+            self.oamAddress = (self.oamAddress + 1) & 0xFF
             address += 1
         # WHAT IS THIS
         cpu.stall += 513
@@ -418,7 +419,7 @@ class PPU:
 
     def tick(self):
         if self.nmiDelay > 0:
-            self.nmiDelay -= 1
+            self.nmiDelay = (self.nmiDelay - 1) % 256
             if self.nmiDelay == 0 and self.nmiOutput and self.nmiOccurred:
                 self.nes.cpu.triggerNMI()
 

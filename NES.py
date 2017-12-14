@@ -38,7 +38,7 @@ class NES:
     def step(self):
         cpu_cycles = self.cpu.step()
         # this was changed from 3 -> 9
-        ppu_cycles = cpu_cycles * 9
+        ppu_cycles = cpu_cycles * 3
         for i in range(ppu_cycles):
             self.ppu.step()
             self.mapper.step()
