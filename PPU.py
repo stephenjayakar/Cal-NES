@@ -13,7 +13,8 @@ class PPU:
     paletteData = [0] * 32
     nameTableData = [0] * 2048
     oamData = [0] * 256
-    # uhh are these displays?
+
+    # screens, even and odd
     front = None
     back = None
 
@@ -32,7 +33,6 @@ class PPU:
     nmiPrevious = False
     nmiDelay = 0 # 8b
 
-    # background temp vars, maybe make these locals
     nameTableByte = 0 #      byte
     attributeTableByte = 0 #  byte
     lowTileByte = 0 #        byte
@@ -133,6 +133,7 @@ class PPU:
         self.flagNameTable = ctrl & 3
         self.flagIncrement = (ctrl >> 2) & 1
         self.flagSpriteTable = (ctrl >> 3) & 1
+        # self.flagSpriteTable = 0
         self.flagBackgroundTable = (ctrl >> 4) & 1
         self.flagSpriteSize = (ctrl >> 5) & 1
         self.flagMasterSlave = (ctrl >> 6) & 1
@@ -159,7 +160,7 @@ class PPU:
         self.nmiOccurred = False
         self.nmiChange()
         self.w = 0
-        return result
+        return result & 0xFF
         
     def writeOAMAddress(self, oam):
         self.oamAddress = oam
@@ -214,12 +215,12 @@ class PPU:
 
     def writeDMA(self, value):
         cpu = self.nes.cpu
-        address = value << 8
+        address = (value << 8) & 0xFFFF
         for i in range(256):
             self.oamData[self.oamAddress] = self.nes.ram.read_byte(address)
-            self.oamAddress = (self.oamAddress + 1) & 0xFF
+            # self.oamAddress = (self.oamAddress + 1) & 0xFF
+            self.oamAddress += 1
             address += 1
-        # WHAT IS THIS
         cpu.stall += 513
         if cpu.cycles % 2 == 1:
             cpu.stall += 1
@@ -301,7 +302,7 @@ class PPU:
             self.highTileByte <<= 1
             data <<= 4
             data |= (a | p1 | p2)
-        self.tiledata = data
+        self.tileData = data
 
     def fetchTileData(self):
         return self.tileData >> 32
@@ -309,7 +310,10 @@ class PPU:
     def backgroundPixel(self):
         if self.flagShowBackground == 0:
             return 0
-        data = self.fetchTileData() >> ((7 - self.x) * 4)
+        # TODO: wtf
+        # self.x = 7
+        # data = self.fetchTileData() >> ((7 - self.x) * 4)
+        data = self.fetchTileData() 
         return data & 0x0F
 
     def spritePixel(self):
@@ -335,8 +339,8 @@ class PPU:
             background = 0
         if x < 8 and self.flagShowLeftSprites == 0:
             sprite = 0
-        b = background % 4 != 0
-        s = sprite % 4 != 0
+        b = (background % 4) != 0
+        s = (sprite % 4) != 0
         color = 0
         if not b and not s:
             color = 0
@@ -351,7 +355,7 @@ class PPU:
                 color = sprite | 0x10
             else:
                 color = background
-        c = Palette[self.readPalette(color % 64)]
+        c = Palette[self.readPalette(color) % 64]
         self.back.SetRGBA(x, y, c)
 
     def fetchSpritePattern(self, i, row):
@@ -410,7 +414,7 @@ class PPU:
                 self.spritePatterns[count] = self.fetchSpritePattern(i, row)
                 self.spritePositions[count] = x
                 self.spritePriorities[count] = (a >> 5) & 1
-                self.spriteIndexes[count] = i
+                self.spriteIndexes[count] = (i & 0xFF)
             count += 1
         if count > 8:
             count = 8

@@ -15,5 +15,4 @@ class Screen:
         self.surface.fill(0)
 
     def SetRGBA(self, x, y, c):
-        # self.screen.set_at((x, y), c)
         self.surface.fill(c, rect=pygame.Rect(x * self.scale, y * self.scale, self.scale, self.scale))

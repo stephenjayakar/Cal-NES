@@ -87,13 +87,14 @@ class CPU:
             self.irq()
         self.interrupt = Interrupt.none
 
-        print(self)
+        # print(self)
         opcode = self.get_PC_byte()
         # print(format(opcode, '02x'))
         self.cycles += instruction_cycles[opcode]
         if opcode not in self.opcode_to_instruction:
             return self.cycles - cycles
         f = self.opcode_to_instruction[opcode]
+        # print(f)
         res = f(opcode)
         if self.page_crossed:
             self.cycles += instruction_page_cycles[opcode]
