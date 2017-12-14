@@ -23,21 +23,13 @@ class NES:
         self.ppu = PPU(self, ppuMEM(self))
         self.surface = pygame.display.set_mode([256 * 4, 240 * 4])
         
-        # Instructions start at 0x8000 / prg_rom
-        # self.ram.mem_set(0x8000, bytearray(self.rom.prg_rom))
-        # self.ram.mem_set(0x8000, bytearray(self.rom.prg_rom[0x37:]))
         pointer = 0x0
         for b in self.rom.prg_rom[0x37:]:
             self.ram[pointer] = b
             pointer += 1
 
-        # where does the ppu ram go?
-        # probably answered by mappers
-        # self.ppu_ram.mem_set(0, bytearray(self.rom.chr_rom))
-
     def step(self):
         cpu_cycles = self.cpu.step()
-        # this was changed from 3 -> 9
         ppu_cycles = cpu_cycles * 3
         for i in range(ppu_cycles):
             self.ppu.step()

@@ -24,6 +24,7 @@ class cpuMEM:
             return self.nes.mapper.read_byte(address)
         else:
             print("bad cpu read at " + str(address))
+            input()
         return 0
 
     def write_byte(self, address, value):

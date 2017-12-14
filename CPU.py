@@ -87,7 +87,9 @@ class CPU:
             self.irq()
         self.interrupt = Interrupt.none
 
+        print(self)
         opcode = self.get_PC_byte()
+        # print(format(opcode, '02x'))
         self.cycles += instruction_cycles[opcode]
         if opcode not in self.opcode_to_instruction:
             return self.cycles - cycles
@@ -398,7 +400,7 @@ class CPU:
             self.SP -= 3
             proc = self.P % 256            
             bytes_to_stack = bytearray([proc, self.PC & 0xFF, self.PC >> 8])
-            pointer = self.SP + 1
+            pointer = self.SP
             for b in bytes_to_stack:
                 self.mem.write_byte(pointer, b)
                 pointer += 1
@@ -407,8 +409,9 @@ class CPU:
             upper = self.get_mem(0xFFFF)
             self.PC = (upper << 8) | lower
 
-            # Set fag
+            # Set flag
             self.set_B(1)
+            self.set_I(1)
         else:
             return self.invalid_instruction(opcode)
 
@@ -925,10 +928,10 @@ class CPU:
 
     def SEI(self, opcode):
         #***** SEI - Set Interrupt Disable *****
-        if opcode == 0x78:  # Implied, 1, 2
-            self.set_I(1)
-        else:
-            return self.invalid_instruction(opcode)
+        # if opcode == 0x78:  # Implied, 1, 2
+        self.set_I(1)
+        #else:
+         #   return self.invalid_instruction(opcode)
 
     def STA(self, opcode):
         #***** STA - Store Accumulator *****
@@ -1163,7 +1166,7 @@ class CPU:
         
     # Prints contents of registers
     def _cpu_dump(self):
-        return "PC: " + str(self.PC) + "\n" + "Reg: " + str(self.reg) + "\n" + "Processor Status: " + bin(self.P)
+        return "PC: " + str(hex(self.PC)) + "\n" + "Reg: " + str(self.reg) + "\n" + "Processor Status: " + bin(self.P)
     
     def __str__(self):
         return self._cpu_dump()
