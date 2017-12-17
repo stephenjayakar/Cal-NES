@@ -56,7 +56,7 @@ class NES:
 
     def update_display(self):
         surface_buffer = self.current_buffer()
-        self.surface.blit(surface_buffer.surface, (30, 0))
+        self.surface.blit(surface_buffer.surface, (0, 0))
         pygame.display.update()
 
 

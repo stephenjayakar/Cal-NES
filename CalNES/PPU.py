@@ -302,7 +302,7 @@ class PPU:
             self.highTileByte <<= 1
             data <<= 4
             data |= (a | p1 | p2)
-        self.tileData = data
+        self.tileData |= data
 
     def fetchTileData(self):
         return self.tileData >> 32
@@ -311,8 +311,8 @@ class PPU:
         if self.flagShowBackground == 0:
             return 0
         # TODO: wtf
-        # data = (self.fetchTileData() >> ((7 - self.x) * 4) & 0x0F)
         data = self.fetchTileData()
+        data >>= ((7 - self.x) * 4) & 0x0F
         # print(data)
         return data & 0x0F
 
