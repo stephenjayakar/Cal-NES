@@ -1,4 +1,4 @@
-from Screen import Screen
+from .Screen import Screen
 import random
 import pygame
 
@@ -92,7 +92,7 @@ class PPU:
     def readPalette(self, address):
         if address >= 16 and address % 4 == 0:
             address -= 16
-        return self.paletteData[address]
+        return self.paletteData[address % 32]
 
     def writePalette(self, address, value):
         if address >= 16 and address % 4 == 0:
@@ -311,9 +311,9 @@ class PPU:
         if self.flagShowBackground == 0:
             return 0
         # TODO: wtf
-        # self.x = 7
-        # data = self.fetchTileData() >> ((7 - self.x) * 4)
-        data = self.fetchTileData() 
+        # data = (self.fetchTileData() >> ((7 - self.x) * 4) & 0x0F)
+        data = self.fetchTileData()
+        # print(data)
         return data & 0x0F
 
     def spritePixel(self):

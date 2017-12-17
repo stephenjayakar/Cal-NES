@@ -8,3 +8,5 @@ temp
 *.asm
 *.deb
 *.cdl
+*.go
+nes-debug/

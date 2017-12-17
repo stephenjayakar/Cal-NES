@@ -38,7 +38,9 @@ class Mapper1:
             address -= 0x8000
             bank = address // 0x4000
             offset = address % 0x4000
-            return self.rom.chr_rom[self.prgOffsets[bank] + int(offset)]
+            prgOffset = self.prgOffsets[bank]
+            addr = prgOffset + offset
+            return self.rom.prg_rom[addr]
         elif address >= 0x6000:
             return self.rom.sram[int(address) - 0x6000]
         else:
@@ -103,10 +105,30 @@ class Mapper1:
         if index >= 0x80:
             index -= 0x100
 
-        index %= len(self.rom.prg_rom) // 0x4000
+        if index > 0:
+            index %= len(self.rom.prg_rom) // 0x4000
+        else:
+            x = -index
+            x %= len(self.rom.prg_rom) // 0x4000
+            index = -x
         offset = index * 0x4000
         if offset < 0:
             offset += len(self.rom.prg_rom)
+        return offset
+
+    def chrBankOffset(self, index):
+        if index >= 0x80:
+            index -= 0x100
+
+        if index > 0:
+            index %= len(self.rom.chr_rom) // 0x1000
+        else:
+            x = -index
+            x %= len(self.rom.chr_rom) // 0x1000
+            index = -x
+        offset =  index * 0x1000
+        if offset < 0:
+            offset += len(self.rom.chr_rom)
         return offset
 
     def updateOffsets(self):

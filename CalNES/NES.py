@@ -1,8 +1,8 @@
-from ROM import ROM
-from RAM import cpuMEM, ppuMEM
-from CPU import CPU
-from PPU import PPU
-from Mapper import create_mapper
+from .ROM import ROM
+from .RAM import cpuMEM, ppuMEM
+from .CPU import CPU
+from .PPU import PPU
+from .Mapper import create_mapper
 import pygame
 import time
 import os
@@ -23,12 +23,16 @@ class NES:
         self.ppu = PPU(self, ppuMEM(self))
         self.surface = pygame.display.set_mode([256 * 4, 240 * 4])
         
-        pointer = 0x0
-        for b in self.rom.prg_rom[0x37:]:
-            self.ram[pointer] = b
-            pointer += 1
+        # pointer = 0x0
+        # for b in self.rom.prg_rom[0x37:]:
+        #     self.ram[pointer] = b
+        #     pointer += 1
 
     def step(self):
+        event = pygame.event.get()
+        for e in event:
+            if e.type == pygame.QUIT:
+                quit()            
         cpu_cycles = self.cpu.step()
         ppu_cycles = cpu_cycles * 3
         for i in range(ppu_cycles):
@@ -52,15 +56,16 @@ class NES:
 
     def update_display(self):
         surface_buffer = self.current_buffer()
-        self.surface.blit(surface_buffer.surface, (0, 0))
+        self.surface.blit(surface_buffer.surface, (30, 0))
         pygame.display.update()
+
 
     #def background_color(self):
     #    return Palette[console.ppu.readPalette(0) % 64]
         
 def main():
     offset = 0
-    n = NES("zelda_test.nes")
+    n = NES("mb.nes")
     display_start_time = time.time()
     clock_start_time = time.time()
     while True:
@@ -76,7 +81,5 @@ def main():
             n.update_display()
     print("Done")
     
-main()
-
 if __name__ == "__main__":
     main()
