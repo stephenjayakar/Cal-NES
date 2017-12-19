@@ -64,17 +64,6 @@ class CPU:
         self.V = (flags >> 6) & 1
         self.N = (flags >> 7) & 1
 
-    # def run_instruction(self):
-    #     if self.done:
-    #         return None
-    #     opcode = self.get_PC_byte()
-    #     if opcode not in self.opcode_to_instruction:
-    #         # for now, terminates the program
-    #         self.done = True
-    #         return None
-    #     f = self.opcode_to_instruction[opcode]
-    #     res = f(opcode)
-
     # Executes a single instruction; replacing run_instruction for now without error handling
     def step(self):
         if self.stall > 0:
@@ -118,7 +107,6 @@ class CPU:
         for b in bytes_to_stack:
             self.mem.write_byte(pointer, b)
             pointer += 1
-        # not implemented
         self.PHP(0x08)
         self.PC = self.read16(0xFFFA)
         self.I = 1
@@ -130,7 +118,6 @@ class CPU:
         for b in bytes_to_stack:
             self.mem.write_byte(pointer, b)
             pointer += 1
-        # not implemented
         self.PHP(0x08)
         self.PC = self.read16(0xFFFE)
         self.I = 1

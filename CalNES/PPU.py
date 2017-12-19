@@ -1,3 +1,8 @@
+"""
+Major credit to fogleman/nes
+I wouldn't even be close to understanding the PPU otherwise
+"""
+
 from .Screen import Screen
 import random
 import pygame
@@ -313,7 +318,6 @@ class PPU:
         # TODO: wtf
         data = self.fetchTileData()
         data >>= ((7 - self.x) * 4) & 0x0F
-        # print(data)
         return data & 0x0F
 
     def spritePixel(self):
@@ -359,8 +363,8 @@ class PPU:
         self.back.SetRGBA(x, y, c)
 
     def fetchSpritePattern(self, i, row):
-        tile = self.oamData[i * 4 + 1]
-        attributes = self.oamData[i * 4 + 2]
+        tile = self.oamData[(i * 4) + 1]
+        attributes = self.oamData[(i * 4) + 2]
         address = 0
         if self.flagSpriteSize == 0:
             if attributes & 0x80 == 0x80:
@@ -368,14 +372,15 @@ class PPU:
             table = self.flagSpriteTable
             address = 0x1000 * table + tile * 16 + row
         else:
-             if attributes & 0x80 == 0x80:
+            if attributes & 0x80 == 0x80:
                 row = 15 - row
-                table = tile & 1
-                tile &= 0xFE
-                if row > 7:
-                    tile += 1
-                    row -= 8
-                address = 0x1000 * table + tile * 16 + row
+            table = tile & 1
+            tile &= 0xFE
+            if row > 7:
+                tile += 1
+                row -= 8
+            address = 0x1000 * table + tile * 16 + row
+        address &= 0xFFFF
         a = (attributes & 3) << 2
         lowTileByte = self.mem.read_byte(address)
         highTileByte = self.mem.read_byte(address + 8)

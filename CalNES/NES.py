@@ -21,13 +21,8 @@ class NES:
         self.ram = bytearray(0x10000)
         self.cpu = CPU(cpuMEM(self))
         self.ppu = PPU(self, ppuMEM(self))
-        self.surface = pygame.display.set_mode([256 * 4, 240 * 4])
+        self.surface = pygame.display.set_mode([256 * 3, 240 * 3])
         
-        # pointer = 0x0
-        # for b in self.rom.prg_rom[0x37:]:
-        #     self.ram[pointer] = b
-        #     pointer += 1
-
     def step(self):
         event = pygame.event.get()
         for e in event:

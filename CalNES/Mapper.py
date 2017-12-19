@@ -157,7 +157,7 @@ class Mapper2:
     
     def __init__(self, rom):
         self.rom = rom
-        prgBanks = len(rom.prg_rom) / 0x4000
+        prgBanks = len(rom.prg_rom) // 0x4000
         prgBank1 = 0
         prgBank2 = prgBanks - 1
 

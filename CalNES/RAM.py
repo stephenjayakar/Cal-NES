@@ -31,7 +31,7 @@ class cpuMEM:
         if address < 0x2000:
             self.nes.ram[address % 0x0800] = value
         elif address < 0x4000:
-            self.nes.ppu.writeRegister(0x2000 + address % 8, value)
+            self.nes.ppu.writeRegister(0x2000 + (address % 8), value)
         elif address < 0x4014:
             # apu register
             return

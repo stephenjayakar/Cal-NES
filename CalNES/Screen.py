@@ -7,7 +7,7 @@ class Screen:
     scale = None
     surface = None
     
-    def __init__(self, width=256, height=240, scale=4):
+    def __init__(self, width=256, height=240, scale=3):
         self.width = width * scale
         self.height = height * scale
         self.scale = scale
