@@ -261,7 +261,6 @@ class PPU:
     def nmiChange(self):
         nmi = self.nmiOutput and self.nmiOccurred
         if nmi and not self.nmiPrevious:
-            # uh there's apparently a long delay here
             self.nmiDelay = 15
         self.nmiPrevious = nmi
 
@@ -274,6 +273,7 @@ class PPU:
         self.nmiOccurred = False
         self.nmiChange()
 
+    # this output is higher for some reason
     def fetchNameTableByte(self):
         address = 0x2000 | (self.v & 0x0FFF)
         self.nameTableByte = self.mem.read_byte(address)
@@ -281,7 +281,7 @@ class PPU:
     def fetchAttributeTableByte(self):
         address = 0x23C0 | (self.v & 0x0C00) | ((self.v >> 4) & 0x38) | ((self.v >> 2) & 0x07)
         shift = ((self.v >> 4) & 4) | (self.v & 2)
-        self.attributeTableByte = ((self.mem.read_byte(address) >> shift) & 3) << 2
+        self.attributeTableByte = (((self.mem.read_byte(address) >> shift) & 3) << 2)
 
     def fetchLowTileByte(self):
         fineY = (self.v >> 12) & 7
@@ -317,7 +317,7 @@ class PPU:
             return 0
         # TODO: wtf
         data = self.fetchTileData()
-        data >>= ((7 - self.x) * 4) & 0x0F
+        data >>= ((7 - self.x) * 4) 
         return data & 0x0F
 
     def spritePixel(self):
