@@ -61,13 +61,11 @@ class ROM:
             # The chr rom data; this might cause an overflow
             self.chr_rom = list(self.FILE.read(8 * 1024 * self.chr_rom_size))
 
+            # provide a chr-ram if not in file?
+            if self.chr_rom_size == 0:
+                self.chr_rom = bytearray(8192)
         
         except Exception as e:
             print("Invalid ROM")
             print(e)
-            return None
-        
-
-# Main tests
-if (__name__ == "__main__"):
-    r = ROM("Super Mario Bros.nes")
+            return None        

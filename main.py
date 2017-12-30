@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+
 from CalNES.NES import NES
 import sys
 import time
