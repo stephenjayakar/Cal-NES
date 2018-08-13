@@ -8,13 +8,7 @@ import time
 import os
 
 class NES:
-    rom = None
-    ram = None
-    cpu = None
-    ppu = None
-    apu = None
-    mapper = None
-    
+    __slots__ = ['rom', 'ram', 'cpu', 'ppu', 'apu', 'mapper', 'surface']    
     def __init__(self, rom_name):
         self.rom = ROM(rom_name)
         self.mapper = create_mapper(self.rom)
@@ -54,9 +48,6 @@ class NES:
         self.surface.blit(surface_buffer.surface, (0, 0))
         pygame.display.update()
 
-
-    #def background_color(self):
-    #    return Palette[console.ppu.readPalette(0) % 64]
         
 def main():
     offset = 0
