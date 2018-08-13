@@ -83,7 +83,7 @@ class CPU:
         if opcode not in self.opcode_to_instruction:
             return self.cycles - cycles
         f = self.opcode_to_instruction[opcode]
-        print(f)
+        # print(f)
         res = f(opcode)
         if self.page_crossed:
             self.cycles += instruction_page_cycles[opcode]
