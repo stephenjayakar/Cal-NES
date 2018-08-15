@@ -23,23 +23,21 @@ class NES:
         for e in event:
             if e.type == pygame.QUIT:
                 quit()            
-        cpu_cycles = self.cpu.step()
-        ppu_cycles = cpu_cycles * 3
-        for i in range(ppu_cycles):
+        self.cpu.step()
+        for i in range(3):
             self.ppu.step()
             self.mapper.step()
-        for i in range(cpu_cycles):
+        #for i in range(cpu_cycles):
             # step the apu
-            pass 
-        return cpu_cycles
+         #   pass 
 
     # why does this return an int
-    def step_frame(self):
-        cpu_cycles = 0
-        frame = self.ppu.frame
-        while frame == self.ppu.frame:
-            cpu_cycles += self.step()
-        return cpu_cycles
+    # def step_frame(self):
+    #     cpu_cycles = 0
+    #     frame = self.ppu.frame
+    #     while frame == self.ppu.frame:
+    #         cpu_cycles += self.step()
+    #     return cpu_cycles
 
     def current_buffer(self):
         return self.ppu.front

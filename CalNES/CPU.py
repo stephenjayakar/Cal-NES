@@ -49,13 +49,13 @@ class CPU:
 
     # Executes a single instruction; replacing run_instruction for now without error handling
     # TODO: make this return nothing, because it just runs one cycle
-    def step(self) -> int:
+    def step(self):
         if self.stall > 0:
             self.stall -= 1
-            return 1
+            return
         if self.cycles > 0:
             self.cycles -= 1
-            return 1
+            return
         if self.interrupt == Interrupt.NMI:
             self.nmi()
         elif self.interrupt == Interrupt.IRQ:
@@ -68,7 +68,7 @@ class CPU:
         res = f(opcode)
         if self.page_crossed:
             self.cycles += instruction_page_cycles[opcode]
-        return 1
+        return
 
     def add_branch_cycles(self, address):
         self.cycles += 1
