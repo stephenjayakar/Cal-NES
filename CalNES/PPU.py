@@ -174,7 +174,7 @@ class PPU:
         self.nmiChange()
         self.w = 0
         return result & 0xFF
-        
+
     def writeOAMAddress(self, oam):
         self.oamAddress = oam
 
@@ -264,8 +264,8 @@ class PPU:
         self.v = (self.v & 0xFBE0) | (self.t & 0x041F)
 
     def copyY(self):
-        self.v = (self.v & 0x841F) | (self.t & 0x7BE0)    
-        
+        self.v = (self.v & 0x841F) | (self.t & 0x7BE0)
+
     def nmiChange(self):
         nmi = self.nmiOutput and self.nmiOccurred
         if nmi and not self.nmiPrevious:
@@ -325,7 +325,7 @@ class PPU:
             return 0
         # TODO: wtf
         data = self.fetchTileData()
-        data >>= ((7 - self.x) * 4) 
+        data >>= ((7 - self.x) * 4)
         return data & 0x0F
 
     def spritePixel(self):
@@ -519,4 +519,4 @@ for i, c in enumerate(colors):
     g = (c >> 8) & 0xFF
     b = c & 0xFF
     Palette[i] = pygame.Color(r, g, b, 255)
-    
+

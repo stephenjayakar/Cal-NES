@@ -16,7 +16,8 @@ class NES:
         self.cpu = CPU(cpuMEM(self))
         self.ppu = PPU(self, ppuMEM(self))
         self.surface = pygame.display.set_mode([256 * 3, 240 * 3])
-        
+
+    # TODO: how often do we call this?  This seems to have an arbitrary amount of cycles
     def step(self):
         event = pygame.event.get()
         for e in event:

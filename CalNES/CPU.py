@@ -48,11 +48,14 @@ class CPU:
         self.set_N(1)
 
     # Executes a single instruction; replacing run_instruction for now without error handling
-    def step(self):
+    # TODO: make this return nothing, because it just runs one cycle
+    def step(self) -> int:
         if self.stall > 0:
-            self.stall =- 1
+            self.stall -= 1
             return 1
-        cycles = self.cycles
+        if self.cycles > 0:
+            self.cycles -= 1
+            return 1
         if self.interrupt == Interrupt.NMI:
             self.nmi()
         elif self.interrupt == Interrupt.IRQ:
@@ -61,13 +64,11 @@ class CPU:
 
         opcode = self.get_PC_byte()
         self.cycles += instruction_cycles[opcode]
-        if opcode not in self.opcode_to_instruction:
-            return self.cycles - cycles
         f = self.opcode_to_instruction[opcode]
         res = f(opcode)
         if self.page_crossed:
             self.cycles += instruction_page_cycles[opcode]
-        return self.cycles - cycles
+        return 1
 
     def add_branch_cycles(self, address):
         self.cycles += 1
@@ -204,7 +205,6 @@ class CPU:
     def get_indirect_y(self):
         return self.get_indirect(self.Y)
 
-
     def ADC(self, opcode):
         # ***** ADC(ADd with Carry) *****
         if opcode == 0x69: #Immediate, 2, 2
@@ -233,7 +233,15 @@ class CPU:
         self.set_Z(self.A == 0)
         self.set_N(self.A >> 7)
 
+    def AHX(self, opcode):
+        print('AHX not implemented')
 
+    def ALR(self, opcode):
+        print('ALR not implemented!')
+
+    def ANC(self, opcode):
+        print('ALC not implemented!')
+        
     def AND(self, opcode):
         #***** AND - Logical AND *****
         if opcode == 0x29: #Immediate, 2, 2
@@ -258,6 +266,9 @@ class CPU:
         # update processor status
         self.set_Z(self.A == 0)
         self.set_N(self.A >> 7)
+
+    def ARR(self, opcode):
+        print('ARR not implemented!')
 
     def ASL(self, opcode):
         #***** ASL - Arithmetic Shift Left: *****"""
@@ -285,6 +296,9 @@ class CPU:
         self.set_C(operand >> 7)
         self.set_Z(self.A == 0)
         self.set_N(result >> 7)
+
+    def AXS(self, opcode):
+        print('AXS not implemented')
 
     def BCC(self, opcode):
         #***** BCC - Branch if Carry Clear *****
@@ -329,7 +343,6 @@ class CPU:
         self.set_Z(result == 0)
         self.set_V(self.get_bit(operand, 6))
         self.set_N(self.get_bit(operand, 7))
-
 
     def BMI(self, opcode):
         #***** BMI - Branch if Minus *****
@@ -431,6 +444,9 @@ class CPU:
         else:
             return self.invalid_instruction(opcode)
 
+    def CMD(self, opcode):
+        print('CMD not implemented')
+
     def CMP(self, opcode):
         #***** CMP - Compare *****
         if opcode == 0xC9: #Immediate 2, 2
@@ -488,6 +504,9 @@ class CPU:
         self.set_C(self.Y >= operand)
         self.set_Z(result == 0)
         self.set_N(result >> 7)
+
+    def DCP(self, opcode):
+        print('DCP not implemented')
 
     def DEC(self, opcode):
         #***** DEC - Decrement Memory *****
@@ -586,6 +605,25 @@ class CPU:
         else:
             return self.invalid_instruction(opcode)
 
+    def ISC(self, opcode):
+        """****** ISC - illegal *****
+          essentially INC + SBC
+        """
+        print('ISC not implemented')
+        # if opcode == 0xEF:
+            
+        # elif opcode == 0xFF:
+        #     asd
+        # elif opcode == 0xFB:
+        #     sd
+        # elif opcode == 0xE7:
+        #     asdf
+        # elif opcode == 0xF7:
+        #     asdf
+        # elif opcode == 0xE3:
+        #     asdf
+        # elif opcode == 0xF3:
+
     def JMP(self, opcode):
         #***** JMP - Jump *****
         if opcode == 0x4C:  # Absolute, 3, 3
@@ -609,6 +647,15 @@ class CPU:
             self.PC = jump_addr
         else:
             return self.invalid_instruction(opcode)
+
+    def KIL(self, opcode):
+        print('KIL not implemented!')
+
+    def LAS(self, opcode):
+        print('LAS not implemented')
+
+    def LAX(self, opcode):
+        print('LAX not implemented')
 
     def LDA(self, opcode):
         #***** LDA - Load Accumulator *****
@@ -697,7 +744,6 @@ class CPU:
         self.set_Z(result == 0)
         self.set_N(result >> 7)
 
-
     def NOP(self, opcode):
         # ***** NOP - No Operation *****
         # if opcode == 0xEA:  # Implied, 1, 2
@@ -765,6 +811,9 @@ class CPU:
         else:
             return self.invalid_instruction(opcode)
 
+    def RLA(self, opcode):
+        print('RLA not implemented!')
+
     def ROL(self, opcode):
         #***** ROL - Rotate Left *****
         if opcode == 0x2A:  # Accumulator, 1, 2
@@ -817,6 +866,9 @@ class CPU:
         self.set_Z(self.A == 0)
         self.set_N(result >> 7)
 
+    def RRA(self, opcode):
+        print('RRA not implemented!')
+
     def RTI(self, opcode):
         #***** RTI - Return from Interrupt *****
         if opcode == 0x40:  # Implied, 1, 6
@@ -845,6 +897,9 @@ class CPU:
             self.SP += 2
         else:
             return self.invalid_instruction(opcode)
+
+    def SAX(self, opcode):
+        print('SAX not implemented')
 
     def SBC(self, opcode):
         #***** SBC - Subtract with Carry *****
@@ -901,6 +956,31 @@ class CPU:
         #else:
          #   return self.invalid_instruction(opcode)
 
+    def SKW(self, opcode):
+        """***** SKW - Skip Next Word *****
+        this opcode performs a read, but doesn't
+        actually do anything with the value lol 
+        important for how many cycles to add though
+        especially if the page is crossed
+
+        """
+        if opcode == 0x0C:
+            self.get_absolute_addr()
+        else:
+            self.get_absolute_addr_x()
+
+    def SLO(self, opcode):
+        print('SLO not implemented!')
+
+    def SRE(self, opcode):
+        print('SRE not implemented!')
+
+    def SHX(self, opcode):
+        print('SHX not implemented')
+
+    def SHY(self, opcode):
+        print('SHY not implemented')
+
     def STA(self, opcode):
         #***** STA - Store Accumulator *****
         if opcode == 0x85:  # Zero Page, 2, 3
@@ -947,6 +1027,9 @@ class CPU:
             return self.invalid_instruction(opcode)
 
         self.set_mem(addr, self.Y)
+
+    def TAS(self, opcode):
+        print('TAS not implemented')
 
     def TAX(self, opcode):
         #***** TAX - Transfer Accumulator to X *****
@@ -1000,6 +1083,8 @@ class CPU:
         else:
             return self.invalid_instruction(opcode)
 
+    def XAA(self, opcode):
+        print('XAA not implemented')
 
     def invalid_instruction(self, opcode):
         print("Invalid instruction: " + hex(opcode))
@@ -1074,72 +1159,24 @@ class CPU:
             return num
 
     def create_opcode_table(self):
-        self.opcode_to_instruction = {
-            0x69: self.ADC, 0x65: self.ADC, 0x75: self.ADC, 0x6D: self.ADC, 0x7D: self.ADC,
-            0x79: self.ADC, 0x61: self.ADC, 0x71: self.ADC,
-            0x29: self.AND, 0x25: self.AND, 0x35: self.AND, 0x2D: self.AND, 0x3D: self.AND,
-            0x39: self.AND, 0x21: self.AND, 0x31: self.AND,
-            0x0A: self.ASL, 0x06: self.ASL, 0x16: self.ASL, 0x0E: self.ASL, 0x1E: self.ASL,
-            0x90: self.BCC, 0xB0: self.BCS,
-            0xF0: self.BEQ,
-            0x24: self.BIT, 0x2C: self.BIT,
-            0x30: self.BMI,
-            0xD0: self.BNE,
-            0x10: self.BPL,
-            0x00: self.BRK,
-            0x50: self.BVC,
-            0x70: self.BVS,
-            0x18: self.CLC,
-            0xD8: self.CLD,
-            0x58: self.CLI,
-            0xB8: self.CLV,
-            0xC9: self.CMP, 0xC5: self.CMP, 0xD5: self.CMP, 0xCD: self.CMP, 0xDD: self.CMP,
-            0xD9: self.CMP, 0xC1: self.CMP, 0xD1: self.CMP,
-            0xE0: self.CPX, 0xE4: self.CPX, 0xEC: self.CPX,
-            0xC0: self.CPY, 0xC4: self.CPY, 0xCC: self.CPY,
-            0xC6: self.DEC, 0xD6: self.DEC, 0xCE: self.DEC, 0xDE: self.DEC,
-            0xCA: self.DEX,
-            0x88: self.DEY,
-            0x49: self.EOR, 0x45: self.EOR, 0x55: self.EOR, 0x4D: self.EOR, 0x5D: self.EOR,
-            0x59: self.EOR, 0x41: self.EOR, 0x51: self.EOR,
-            0xE6: self.INC, 0xF6: self.INC, 0xEE: self.INC, 0xFE: self.INC,
-            0xE8: self.INX,
-            0xC8: self.INY,
-            0x4C: self.JMP, 0x6C: self.JMP,
-            0x20: self.JSR,
-            0xA9: self.LDA, 0xA5: self.LDA, 0xB5: self.LDA, 0xAD: self.LDA, 0xBD: self.LDA,
-            0xB9: self.LDA, 0xA1: self.LDA, 0xB1: self.LDA,
-            0xA2: self.LDX, 0xA6: self.LDX, 0xB6: self.LDX, 0xAE: self.LDX, 0xBE: self.LDX,
-            0xA0: self.LDY, 0xA4: self.LDY, 0xB4: self.LDY, 0xAC: self.LDY, 0xBC: self.LDY,
-            0x4A: self.LSR, 0x46: self.LSR, 0x56: self.LSR, 0x4E: self.LSR, 0x5E: self.LSR,
-            0xEA: self.NOP,
-            0x04: self.NOP,
-            0x09: self.ORA, 0x05: self.ORA, 0x15: self.ORA, 0x0D: self.ORA, 0x1D: self.ORA,
-            0x19: self.ORA, 0x01: self.ORA, 0x11: self.ORA,
-            0x48: self.PHA,
-            0x08: self.PHP,
-            0x68: self.PLA,
-            0x28: self.PLP,
-            0x2A: self.ROL, 0x26: self.ROL, 0x36: self.ROL, 0x2E: self.ROL, 0x3E: self.ROL,
-            0x6A: self.ROR, 0x66: self.ROR, 0x76: self.ROR, 0x6E: self.ROR, 0x7E: self.ROR,
-            0x40: self.RTI,
-            0x60: self.RTS,
-            0xE9: self.SBC, 0xE5: self.SBC, 0xF5: self.SBC, 0xED: self.SBC, 0xFD: self.SBC,
-            0xF9: self.SBC, 0xE1: self.SBC, 0xF1: self.SBC,
-            0x38: self.SEC,
-            0xF8: self.SED,
-            0x78: self.SEI,
-            0x85: self.STA, 0x95: self.STA, 0x8D: self.STA, 0x9D: self.STA, 0x99: self.STA,
-            0x81: self.STA, 0x91: self.STA,
-            0x86: self.STX, 0x96: self.STX, 0x8E: self.STX,
-            0x84: self.STY, 0x94: self.STY, 0x8C: self.STY,
-            0xAA: self.TAX,
-            0xA8: self.TAY,
-            0xBA: self.TSX,
-            0x8A: self.TXA,
-            0x9A: self.TXS,
-            0x98: self.TYA
-        }
+        self.opcode_to_instruction = [
+            self.BRK, self.ORA, self.KIL, self.SLO, self.NOP, self.ORA, self.ASL, self.SLO, self.PHP, self.ORA, self.ASL, self.ANC, self.NOP, self.ORA, self.ASL, self.SLO,
+            self.BPL, self.ORA, self.KIL, self.SLO, self.NOP, self.ORA, self.ASL, self.SLO, self.CLC, self.ORA, self.NOP, self.SLO, self.NOP, self.ORA, self.ASL, self.SLO,
+            self.JSR, self.AND, self.KIL, self.RLA, self.BIT, self.AND, self.ROL, self.RLA, self.PLP, self.AND, self.ROL, self.ANC, self.BIT, self.AND, self.ROL, self.RLA,
+            self.BMI, self.AND, self.KIL, self.RLA, self.NOP, self.AND, self.ROL, self.RLA, self.SEC, self.AND, self.NOP, self.RLA, self.NOP, self.AND, self.ROL, self.RLA,
+            self.RTI, self.EOR, self.KIL, self.SRE, self.NOP, self.EOR, self.LSR, self.SRE, self.PHA, self.EOR, self.LSR, self.ALR, self.JMP, self.EOR, self.LSR, self.SRE,
+            self.BVC, self.EOR, self.KIL, self.SRE, self.NOP, self.EOR, self.LSR, self.SRE, self.CLI, self.EOR, self.NOP, self.SRE, self.NOP, self.EOR, self.LSR, self.SRE,
+            self.RTS, self.ADC, self.KIL, self.RRA, self.NOP, self.ADC, self.ROR, self.RRA, self.PLA, self.ADC, self.ROR, self.ARR, self.JMP, self.ADC, self.ROR, self.RRA,
+            self.BVS, self.ADC, self.KIL, self.RRA, self.NOP, self.ADC, self.ROR, self.RRA, self.SEI, self.ADC, self.NOP, self.RRA, self.NOP, self.ADC, self.ROR, self.RRA,
+            self.NOP, self.STA, self.NOP, self.SAX, self.STY, self.STA, self.STX, self.SAX, self.DEY, self.NOP, self.TXA, self.XAA, self.STY, self.STA, self.STX, self.SAX,
+            self.BCC, self.STA, self.KIL, self.AHX, self.STY, self.STA, self.STX, self.SAX, self.TYA, self.STA, self.TXS, self.TAS, self.SHY, self.STA, self.SHX, self.AHX,
+            self.LDY, self.LDA, self.LDX, self.LAX, self.LDY, self.LDA, self.LDX, self.LAX, self.TAY, self.LDA, self.TAX, self.LAX, self.LDY, self.LDA, self.LDX, self.LAX,
+            self.BCS, self.LDA, self.KIL, self.LAX, self.LDY, self.LDA, self.LDX, self.LAX, self.CLV, self.LDA, self.TSX, self.LAS, self.LDY, self.LDA, self.LDX, self.LAX,
+            self.CPY, self.CMP, self.NOP, self.DCP, self.CPY, self.CMP, self.DEC, self.DCP, self.INY, self.CMP, self.DEX, self.AXS, self.CPY, self.CMP, self.DEC, self.DCP,
+            self.BNE, self.CMP, self.KIL, self.DCP, self.NOP, self.CMP, self.DEC, self.DCP, self.CLD, self.CMP, self.NOP, self.DCP, self.NOP, self.CMD, self.DEC, self.DCP,
+            self.CPX, self.SBC, self.NOP, self.ISC, self.CPX, self.SBC, self.INC, self.ISC, self.INX, self.SBC, self.NOP, self.SBC, self.CPX, self.SBC, self.INC, self.ISC,
+            self.BEQ, self.SBC, self.KIL, self.ISC, self.NOP, self.SBC, self.INC, self.ISC, self.SED, self.SBC, self.NOP, self.ISC, self.NOP, self.SBC, self.INC, self.ISC
+        ]
         
     # Prints contents of registers
     def _cpu_dump(self):
