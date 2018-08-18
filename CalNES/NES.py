@@ -8,11 +8,10 @@ import time
 import os
 
 class NES:
-    __slots__ = ['rom', 'ram', 'cpu', 'ppu', 'apu', 'mapper', 'surface']    
+    __slots__ = ['rom', 'ram', 'cpu', 'ppu', 'apu', 'mapper', 'surface']
     def __init__(self, rom_name):
         self.rom = ROM(rom_name)
         self.mapper = create_mapper(self.rom)
-        self.ram = bytearray(0x10000)
         self.cpu = CPU(cpuMEM(self))
         self.ppu = PPU(self, ppuMEM(self))
         self.surface = pygame.display.set_mode([256 * 3, 240 * 3])
@@ -22,14 +21,14 @@ class NES:
         event = pygame.event.get()
         for e in event:
             if e.type == pygame.QUIT:
-                quit()            
+                quit()
         self.cpu.step()
         for i in range(3):
             self.ppu.step()
             self.mapper.step()
         #for i in range(cpu_cycles):
             # step the apu
-         #   pass 
+         #   pass
 
     # why does this return an int
     # def step_frame(self):
@@ -47,7 +46,7 @@ class NES:
         self.surface.blit(surface_buffer.surface, (0, 0))
         pygame.display.update()
 
-        
+
 def main():
     offset = 0
     n = NES("mb.nes")
@@ -65,6 +64,6 @@ def main():
             display_start_time = time.time()
             n.update_display()
     print("Done")
-    
+
 if __name__ == "__main__":
     main()

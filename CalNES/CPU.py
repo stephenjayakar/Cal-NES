@@ -1,5 +1,8 @@
 from enum import Enum
 
+RESET_VECTOR = 0xFFFC
+# RESET_VECTOR = 0x8000 - 1
+
 def pages_differ(a, b):
     return (a & 0xFF00) != (b & 0xFF00)
 
@@ -10,8 +13,9 @@ class Interrupt(Enum):
     IRQ = 2
 
 class CPU:
-    __slots__ = ['done', 'mem', 'PC', 'P', 'SP', 'reg', 'opcode_to_instruction', 'stall', 'cycles', 'interrupt', 'page_crossed']
-    
+    __slots__ = ['done', 'mem', 'PC', 'P', 'SP', 'reg', 'opcode_to_instruction',
+                 'stall', 'cycles', 'interrupt', 'page_crossed']
+
     def __init__(self, mem, PC_START = 0x8000, SP_START = 0xFD):
         self.stall = 0
         self.cycles = 0
@@ -20,7 +24,7 @@ class CPU:
         self.done = False
         self.P = 0
         self.mem = mem
-        self.PC = self.read16(0xFFFC)
+        self.PC = self.read16(RESET_VECTOR)
         self.SP = SP_START
 
         self.reg = {"A": bytearray([0]),
@@ -29,7 +33,7 @@ class CPU:
         self.create_opcode_table()
 
     def reset(self):
-        self.PC = self.read16(0xFFFC)
+        self.PC = self.read16(RESET_VECTOR)
         self.SP = 0xFD
         self.setflags(0x24)
 
@@ -42,7 +46,7 @@ class CPU:
         self.set_I(1)
         self.set_D(1)
         self.set_B(1)
-        # TODO: what does this flag do? 
+        # TODO: what does this flag do?
         # self.U = (flags >> 5) & 1
         self.set_V(1)
         self.set_N(1)
@@ -65,16 +69,15 @@ class CPU:
         opcode = self.get_PC_byte()
         self.cycles += instruction_cycles[opcode]
         f = self.opcode_to_instruction[opcode]
-        res = f(opcode)
+        result = f(opcode)
         if self.page_crossed:
             self.cycles += instruction_page_cycles[opcode]
-        return
 
     def add_branch_cycles(self, address):
         self.cycles += 1
         if pages_differ(self.PC, address):
             self.cycles += 1
-        
+
     def triggerNMI(self):
         self.interrupt = Interrupt.NMI
 
@@ -103,7 +106,6 @@ class CPU:
         self.PC = self.read16(0xFFFE)
         self.set_I(1)
         self.cycles += 7
-        
 
     def get_mem(self, addr):
         return self.mem.read_byte(addr)
@@ -125,7 +127,6 @@ class CPU:
     def get_zero_page_addr_y(self):
         return self.get_zero_page_addr(self.Y)
 
-
     def get_zero_page(self, offset=0):
         addr = self.get_PC_byte() + offset
         mem_byte = self.get_mem(addr)
@@ -136,7 +137,6 @@ class CPU:
 
     def get_zero_page_y(self):
         return self.get_zero_page(self.Y)
-
 
     def get_absolute_addr(self, offset=0):
         lower = self.get_PC_byte()
@@ -191,7 +191,6 @@ class CPU:
         self.page_crossed = pages_differ(address - (self.Y), address)
         return address
 
-
     def get_indirect(self, offset=0):
         addr = self.get_absolute_addr(offset)
         lower = self.get_mem(addr)
@@ -241,7 +240,7 @@ class CPU:
 
     def ANC(self, opcode):
         print('ALC not implemented!')
-        
+
     def AND(self, opcode):
         #***** AND - Logical AND *****
         if opcode == 0x29: #Immediate, 2, 2
@@ -360,7 +359,7 @@ class CPU:
         if opcode == 0xD0:  #Relative, 2, 2
             if not self.Z:
                 self.PC = addr
-                self.add_branch_cycles(addr)                
+                self.add_branch_cycles(addr)
         else:
             return self.invalid_instruction(opcode)
 
@@ -370,7 +369,7 @@ class CPU:
         if opcode == 0x10:  #Relative, 2, 2
             if not self.N:
                 self.PC = addr
-                self.add_branch_cycles(addr)                
+                self.add_branch_cycles(addr)
         else:
             return self.invalid_instruction(opcode)
 
@@ -379,7 +378,7 @@ class CPU:
         if opcode == 0x00:  #Implied, 1, 7
             # Push PC and P on stack
             self.SP -= 3
-            proc = self.P % 256            
+            proc = self.P % 256
             bytes_to_stack = bytearray([proc, self.PC & 0xFF, self.PC >> 8])
             pointer = self.SP
             for b in bytes_to_stack:
@@ -402,7 +401,7 @@ class CPU:
         if opcode == 0x50:  #Relative, 2, 2
             if not self.V:
                 self.PC = addr
-                self.add_branch_cycles(addr)                
+                self.add_branch_cycles(addr)
         else:
             return self.invalid_instruction(opcode)
 
@@ -412,7 +411,7 @@ class CPU:
         if opcode == 0x70:  #Relative, 2, 2
             if self.V:
                 self.PC = addr
-                self.add_branch_cycles(addr)                
+                self.add_branch_cycles(addr)
         else:
             return self.invalid_instruction(opcode)
 
@@ -611,7 +610,7 @@ class CPU:
         """
         print('ISC not implemented')
         # if opcode == 0xEF:
-            
+
         # elif opcode == 0xFF:
         #     asd
         # elif opcode == 0xFB:
@@ -959,7 +958,7 @@ class CPU:
     def SKW(self, opcode):
         """***** SKW - Skip Next Word *****
         this opcode performs a read, but doesn't
-        actually do anything with the value lol 
+        actually do anything with the value lol
         important for how many cycles to add though
         especially if the page is crossed
 
@@ -1177,11 +1176,11 @@ class CPU:
             self.CPX, self.SBC, self.NOP, self.ISC, self.CPX, self.SBC, self.INC, self.ISC, self.INX, self.SBC, self.NOP, self.SBC, self.CPX, self.SBC, self.INC, self.ISC,
             self.BEQ, self.SBC, self.KIL, self.ISC, self.NOP, self.SBC, self.INC, self.ISC, self.SED, self.SBC, self.NOP, self.ISC, self.NOP, self.SBC, self.INC, self.ISC
         ]
-        
+
     # Prints contents of registers
     def _cpu_dump(self):
         return "PC: " + str(hex(self.PC)) + "\n" + "Reg: " + str(self.reg) + "\n" + "Processor Status: " + bin(self.P)
-    
+
     def __str__(self):
         return self._cpu_dump()
 
@@ -1210,7 +1209,7 @@ class CPU:
     def Y(self, value) -> None:
         self.reg["Y"][0] = value % 256
 
-# mapping from opcode to num_cycles        
+# mapping from opcode to num_cycles
 instruction_cycles = [7, 6, 2, 8, 3, 3, 5, 5, 3, 2, 2, 2, 4, 4, 6, 6,
 	              2, 5, 2, 8, 4, 4, 6, 6, 2, 4, 2, 7, 4, 4, 7, 7,
 	              6, 6, 2, 8, 3, 3, 5, 5, 4, 2, 2, 2, 4, 4, 6, 6,

@@ -1,13 +1,93 @@
-def create_mapper(rom):
+def create_mapper(nes):
+    rom = nes.rom
     mapper = rom.mapper
     if mapper == 0:
-        return Mapper2(rom)
+        return Mapper0(nes)
     elif mapper == 1:
-        return Mapper1(rom)
+        return Mapper1(nes)
     elif mapper == 2:
-        return Mapper2(rom)
+        return Mapper2(nes)
     else:
         return None
+
+class Mapper0:
+    __slots__ = ['rom', 'nes']
+    
+    def __init__(self, nes):
+        self.rom = nes.rom
+        self.nes = nes
+        self.load_rom()
+
+    def step(self):
+        return None
+
+    def read_byte(self, address):
+        address &= 0xFFFF
+
+        if address < 0x2000:
+            return self.nes.cpu.mem[address]
+        elif address <= 0x4017:
+            print('io ports not handled')
+        else:
+            return self.nes.cpu.mem[address]        
+
+    def write_byte(self, address, value):
+        address &= 0xFFFF
+
+        if address < 0x2000:
+            self.nes.cpu.mem[address & 0x7FF] = value
+        elif address <= 0x2007:
+            print('write to register')
+        elif address < 0x4000:
+            print('write to register with a bigger mem address')        
+
+    def load_rom(self):
+        self.load_prg_rom()
+        self.load_chr_rom()
+        self.load_battery()
+        # TODO: do we have to do this
+        # self.nes.cpu.irq()
+
+    def load_prg_rom(self):
+        if (self.rom.prg_rom_size > 1):
+            self.load_rom_bank(0, 0x8000)
+            self.load_rom_bank(1, 0xC000)
+        else:
+            self.load_rom_bank(0, 0x8000)
+            self.load_rom_bank(0, 0xC000)
+
+    def load_chr_rom(self):
+        if self.chr_rom_size > 0:
+            if self.nes.rom.chr_rom_size == 1:
+                self.load_vrom_bank(0, 0x0000)
+                self.load_vrom_bank(0, 0x1000)
+            else:
+                self.load_vrom_bank(0, 0x0000)
+                self.load_vrom_bank(1, 0x1000)
+
+    def load_battery(self):
+        # TODO !
+        return None
+        
+
+    def load_rom_bank(self, bank, address):
+        bank %= self.rom.prg_rom_size
+        size = 16 * 1024
+        bank_offset = size * bank
+        self.nes.cpu.mem[address: address + size] = self.rom.prg_rom[bank_offset: bank_offset + size]
+
+    def load_vrom_bank(self, bank, address):
+        if not self.nes.chr_rom_size:
+            return
+        # ppu trigger rendering
+
+        bank %= this.nes.rom.chr_rom_size
+        
+        self.nes.ppu.mem[address: address + 4096] = self.rom.chr_rom[:4096]
+
+        # See if we need to copy in the VROMTiles; I don't really understand why he did it this way
+
+        
     
 class Mapper1:
     rom = None
@@ -21,8 +101,9 @@ class Mapper1:
     prgOffsets = [0] * 2
     chrOffsets = [0] * 2
     
-    def __init__(self, rom):
-        self.rom = rom
+    def __init__(self, nes):
+        self.nes = nes
+        self.rom = nes.rom
         self.shiftRegister = 0x10
         self.prgOffsets[1] = self.prgBankOffset(-1)
 
@@ -148,14 +229,16 @@ class Mapper1:
             self.chrOffsets[0] = self.chrBankOffset(int(self.chrBank0))
             self.chrOffsets[1] = self.chrBankOffset(int(self.chrBank1))
 
+
 class Mapper2:
     rom = None
     prgBanks = 0
     prgBank1 = 0
     prgBank2 = 0
     
-    def __init__(self, rom):
-        self.rom = rom
+    def __init__(self, nes):
+        self.nes = nes
+        self.rom = nes.rom
         self.prgBanks = len(rom.prg_rom) // 0x4000
         self.prgBank1 = 0
         self.prgBank2 = self.prgBanks - 1
