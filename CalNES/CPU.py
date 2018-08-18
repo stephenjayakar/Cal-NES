@@ -10,31 +10,39 @@ class Interrupt(Enum):
     IRQ = 2
 
 class CPU:
-    __slots__ = ['done', 'mem', 'PC', 'P', 'SP', 'reg', 'opcode_to_instruction', 'stall', 'cycles', 'interrupt', 'page_crossed']
+    __slots__ = ['done', 'mem', 'PC', 'P', 'SP', 'reg', 'opcode_to_instruction', 'stall', 'cycles', 'interrupt', 'page_crossed', 'debug', 'nes', 'DEBUG']
     
-    def __init__(self, mem, PC_START = 0x8000, SP_START = 0xFD):
+    def __init__(self, nes, mem, DEBUG):
+        self.nes = nes
+        self.mem = mem
+        self.reg = {"A": bytearray([0]),
+                    "X": bytearray([0]),
+                    "Y": bytearray([0])}
+        self.create_opcode_table()
+        self.DEBUG = DEBUG
+
+    def reset(self):
         self.stall = 0
         self.cycles = 0
         self.interrupt = Interrupt.none
         self.page_crossed = False
         self.done = False
         self.P = 0
-        self.mem = mem
-        self.PC = self.read16(0xFFFC)
-        self.SP = SP_START
-
-        self.reg = {"A": bytearray([0]),
-                    "X": bytearray([0]),
-                    "Y": bytearray([0])}
-        self.create_opcode_table()
-
-    def reset(self):
         self.PC = self.read16(0xFFFC)
         self.SP = 0xFD
         self.setflags(0x24)
+        self.A = 0
+        self.X = 0
+        self.Y = 0
+
+    def mread(self, address):
+        return self.nes.mmap.read(address)
 
     def read16(self, address):
-        return (self.mem.read_byte(address + 1) << 8) | self.mem.read_byte(address)
+        return (self.nes.mmap.read(address + 1) << 8) | self.nes.mmap.read(address)
+
+    def mwrite(self, address, value):
+        self.nes.mmap.write(address, value)
 
     def setflags(self, flags):
         self.set_C(1)
@@ -48,7 +56,6 @@ class CPU:
         self.set_N(1)
 
     # Executes a single instruction; replacing run_instruction for now without error handling
-    # TODO: make this return nothing, because it just runs one cycle
     def step(self):
         if self.stall > 0:
             self.stall -= 1
@@ -62,9 +69,12 @@ class CPU:
             self.irq()
         self.interrupt = Interrupt.none
 
+        old_PC = self.PC
         opcode = self.get_PC_byte()
         self.cycles += instruction_cycles[opcode]
         f = self.opcode_to_instruction[opcode]
+        if self.DEBUG:
+            print("CPU: Running instruction {} at address {}".format(f.__name__, old_PC))
         res = f(opcode)
         if self.page_crossed:
             self.cycles += instruction_page_cycles[opcode]
@@ -86,7 +96,7 @@ class CPU:
         bytes_to_stack = bytearray([self.PC & 0xFF, self.PC >> 8])
         pointer = self.SP
         for b in bytes_to_stack:
-            self.mem.write_byte(pointer, b)
+            self.mwrite(pointer, b)
             pointer += 1
         self.PHP(0x08)
         self.PC = self.read16(0xFFFA)
@@ -97,7 +107,7 @@ class CPU:
         bytes_to_stack = bytearray([self.PC & 0xFF, self.PC >> 8])
         pointer = self.SP
         for b in bytes_to_stack:
-            self.mem.write_byte(pointer, b)
+            self.mwrite(pointer, b)
             pointer += 1
         self.PHP(0x08)
         self.PC = self.read16(0xFFFE)
@@ -105,14 +115,8 @@ class CPU:
         self.cycles += 7
         
 
-    def get_mem(self, addr):
-        return self.mem.read_byte(addr)
-
-    def set_mem(self, addr, value):
-        self.mem.write_byte(addr, value)
-
     def get_PC_byte(self):
-        byte = self.get_mem(self.PC)
+        byte = self.mread(self.PC)
         self.PC += 1
         return byte
 
@@ -128,7 +132,7 @@ class CPU:
 
     def get_zero_page(self, offset=0):
         addr = self.get_PC_byte() + offset
-        mem_byte = self.get_mem(addr)
+        mem_byte = self.mread(addr)
         return mem_byte
 
     def get_zero_page_x(self):
@@ -157,7 +161,7 @@ class CPU:
         lower = self.get_PC_byte()
         upper = self.get_PC_byte()
         addr = (upper << 8 | lower) + offset
-        mem_byte = self.get_mem(addr)
+        mem_byte = self.mread(addr)
         return mem_byte
 
     def get_absolute_x(self):
@@ -176,12 +180,8 @@ class CPU:
     def get_indirect_addr(self, reg_offset=0):
         # The next byte after opcode
         zero_page_addr = self.get_PC_byte()
-        addr = self.get_mem(zero_page_addr) + (self.get_mem(zero_page_addr + 1) << 8)
+        addr = self.mread(zero_page_addr) + (self.mread(zero_page_addr + 1) << 8)
         return addr + reg_offset
-        # addr = offset + reg_offset
-        # lower = self.get_mem(addr)
-        # upper = self.get_mem(addr + 1)
-        # return (upper << 8) + lower
 
     def get_indirect_addr_x(self):
         return self.get_indirect_addr(self.X)
@@ -194,10 +194,10 @@ class CPU:
 
     def get_indirect(self, offset=0):
         addr = self.get_absolute_addr(offset)
-        lower = self.get_mem(addr)
-        upper = self.get_mem(addr + 1)
+        lower = self.mread(addr)
+        upper = self.mread(addr + 1)
         real_addr = (upper << 8) + lower
-        return self.get_mem(real_addr)
+        return self.mread(real_addr)
 
     def get_indirect_x(self):
         return self.get_indirect(self.X)
@@ -289,7 +289,7 @@ class CPU:
             else:
                 return self.invalid_instruction(opcode)
 
-            operand = self.get_mem(addr)
+            operand = self.mread(addr)
             result = (operand << 1) & 0xFF
             self.set_mem(addr, result)
 
@@ -383,11 +383,11 @@ class CPU:
             bytes_to_stack = bytearray([proc, self.PC & 0xFF, self.PC >> 8])
             pointer = self.SP
             for b in bytes_to_stack:
-                self.mem.write_byte(pointer, b)
+                self.mwrite(pointer, b)
                 pointer += 1
             # Set PC as IRQ vector
-            lower = self.get_mem(0xFFFE)
-            upper = self.get_mem(0xFFFF)
+            lower = self.mread(0xFFFE)
+            upper = self.mread(0xFFFF)
             self.PC = (upper << 8) | lower
 
             # Set flag
@@ -521,8 +521,8 @@ class CPU:
         else:
             return self.invalid_instruction(opcode)
 
-        result = (self.get_mem(addr) - 1) & 0xFF
-        self.set_mem(addr, result)
+        result = (self.mread(addr) - 1) & 0xFF
+        self.mwrite(addr, result)
         self.set_Z(result == 0)
         self.set_N(result >> 7)
 
@@ -582,8 +582,8 @@ class CPU:
         else:
             return self.invalid_instruction(opcode)
 
-        result = self.get_mem(addr) + 1
-        self.set_mem(addr, result)
+        result = self.mread(addr) + 1
+        self.mwrite(addr, result)
         self.set_Z(result == 0)
         self.set_N(result >> 7)
 
@@ -639,10 +639,9 @@ class CPU:
             jump_addr = self.get_absolute_addr()
             self.SP -= 2
             bytes_to_load = bytearray([self.PC & 0xFF, self.PC >> 8])
-            # self.ram.mem_set(self.SP, bytes_to_load)
             pointer = self.SP
             for b in bytes_to_load:
-                self.mem.write_byte(pointer, b)
+                self.mwrite(pointer, b)
                 pointer += 1
             self.PC = jump_addr
         else:
@@ -736,9 +735,9 @@ class CPU:
             else:
                 return self.invalid_instruction(opcode)
 
-            operand = self.get_mem(addr)
+            operand = self.mread(addr)
             result = operand >> 1
-            self.set_mem(addr, result)
+            self.mwrite(addr, result)
 
         self.set_C(operand & 0b1)
         self.set_Z(result == 0)
@@ -780,7 +779,7 @@ class CPU:
         #***** PHA - Push Accumulator *****
         if opcode == 0x48:  # Implied, 1, 3
             self.SP -= 1
-            self.set_mem(self.SP, self.A)
+            self.mwrite(self.SP, self.A)
         else:
             return self.invalid_instruction(opcode)
 
@@ -789,14 +788,14 @@ class CPU:
         # if opcode == 0x08:  # Implied, 1, 3
         self.SP -= 1
         proc = self.P % 256
-        self.set_mem(self.SP, proc)
+        self.mwrite(self.SP, proc)
         # else:
         #     return self.invalid_instruction(opcode)
 
     def PLA(self, opcode):
         #***** PLA - Pull Accumulator *****
         if opcode == 0x68:  # Implied, 1, 4
-            self.A = self.get_mem(self.SP)
+            self.A = self.mread(self.SP)
             self.SP += 1
             self.set_Z(self.A == 0)
             self.set_N(self.A >> 7)
@@ -806,7 +805,7 @@ class CPU:
     def PLP(self, opcode):
         #***** PLP - Pull Processor Status *****
         if opcode == 0x28:  # Implied, 1, 4
-            self.P = self.get_mem(self.SP)
+            self.P = self.mread(self.SP)
             self.SP += 1
         else:
             return self.invalid_instruction(opcode)
@@ -832,9 +831,9 @@ class CPU:
             else:
                 return self.invalid_instruction(opcode)
 
-            operand = self.get_mem(addr)
+            operand = self.mread(addr)
             result = (operand << 1) | self.C
-            self.set_mem(addr, result)
+            self.mwrite(addr, result)
 
         self.set_C(operand >> 7)
         self.set_Z(self.A == 0)
@@ -858,9 +857,9 @@ class CPU:
             else:
                 return self.invalid_instruction(opcode)
 
-            operand = self.get_mem(addr)
+            operand = self.mread(addr)
             result = (operand >> 1) | (self.C << 7)
-            self.set_mem(addr, result)
+            self.mwrite(addr, result)
 
         self.set_C(operand & 0b1)
         self.set_Z(self.A == 0)
@@ -875,7 +874,7 @@ class CPU:
             # loaded = self.ram.mem_get(self.SP, 3)
             loaded = []
             for i in range(3):
-                loaded.append(self.mem.read_byte(self.SP + i))
+                loaded.append(self.mread(self.SP + i))
             self.P = loaded[0]
             lower = loaded[1]
             upper = loaded[2]
@@ -890,7 +889,7 @@ class CPU:
             # loaded = self.ram.mem_get(self.SP, 2)
             loaded = []
             for i in range(2):
-                loaded.append(self.mem.read_byte(self.SP + i))
+                loaded.append(self.mread(self.SP + i))
             lower = loaded[0]
             upper = loaded[1]
             self.PC = (upper << 8) | lower
@@ -1000,7 +999,7 @@ class CPU:
         else:
             return self.invalid_instruction(opcode)
 
-        self.set_mem(addr, self.A)
+        self.mwrite(addr, self.A)
 
     def STX(self, opcode):
         #***** STX - Store X Register *****
@@ -1013,7 +1012,7 @@ class CPU:
         else:
             return self.invalid_instruction(opcode)
 
-        self.set_mem(addr, self.X)
+        self.mwrite(addr, self.X)
 
     def STY(self, opcode):
         #***** STY - Store Y Register *****
@@ -1026,7 +1025,7 @@ class CPU:
         else:
             return self.invalid_instruction(opcode)
 
-        self.set_mem(addr, self.Y)
+        self.mwrite(addr, self.Y)
 
     def TAS(self, opcode):
         print('TAS not implemented')

@@ -112,7 +112,7 @@ class PPU:
             address -= 16
         self.paletteData[address] = value
 
-    def readRegister(self, address):
+    def read_register(self, address):
         if address == 0x2002:
             return self.readStatus()
         if address == 0x2004:
@@ -122,7 +122,7 @@ class PPU:
         return 0
 
     # consider rewriting this with hashing
-    def writeRegister(self, address, value):
+    def write_register(self, address, value):
         value = value & 0xFF
         self.register = value
         if address == 0x2000:
