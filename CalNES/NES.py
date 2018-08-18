@@ -8,12 +8,16 @@ import time
 import os
 
 class NES:
-    __slots__ = ['rom', 'cpu', 'ppu', 'apu', 'mmap', 'surface']
-    
+    __slots__ = ['rom', 'cpu', 'ppu', 'apu', 'mmap', 'surface', 'ram', 'vram']
+
+    # TOOD: attach vram and ram to this, and point all references from ppu.mem
     def __init__(self, rom_name, DEBUG=False):
         self.rom = ROM(rom_name)
+        self.ram = bytearray(0x10000)
+        # is this the right size?
+        self.vram = bytearray(0x10000)
         self.mmap = create_mapper(self, self.rom.mapper)
-        self.cpu = CPU(self, bytearray(0x10000), DEBUG)
+        self.cpu = CPU(self, DEBUG)
         self.cpu.reset()
         self.ppu = PPU(self, ppuMEM(self))
         self.surface = pygame.display.set_mode([256 * 3, 240 * 3])

@@ -10,11 +10,10 @@ class Interrupt(Enum):
     IRQ = 2
 
 class CPU:
-    __slots__ = ['done', 'mem', 'PC', 'P', 'SP', 'reg', 'opcode_to_instruction', 'stall', 'cycles', 'interrupt', 'page_crossed', 'debug', 'nes', 'DEBUG']
+    __slots__ = ['done', 'mem', 'PC', 'P', 'SP', 'reg', 'opcode_to_instruction', 'stall', 'cycles', 'interrupt', 'page_crossed', 'debug', 'nes', 'DEBUG', 'elapsed_cycles']
     
-    def __init__(self, nes, mem, DEBUG):
+    def __init__(self, nes, DEBUG):
         self.nes = nes
-        self.mem = mem
         self.reg = {"A": bytearray([0]),
                     "X": bytearray([0]),
                     "Y": bytearray([0])}
@@ -24,11 +23,14 @@ class CPU:
     def reset(self):
         self.stall = 0
         self.cycles = 0
+        self.elapsed_cycles = 0
         self.interrupt = Interrupt.none
         self.page_crossed = False
         self.done = False
         self.P = 0
-        self.PC = self.read16(0xFFFC)
+        # self.PC = self.read16(0xFFFC)
+        # DEBUG, for nestest
+        self.PC = 0xC000
         self.SP = 0xFD
         self.setflags(0x24)
         self.A = 0
@@ -39,8 +41,8 @@ class CPU:
         return self.nes.mmap.read(address)
 
     def read16(self, address):
-        return (self.nes.mmap.read(address + 1) << 8) | self.nes.mmap.read(address)
-
+        return (self.mread(address + 1) << 8) | self.mread(address)
+    
     def mwrite(self, address, value):
         self.nes.mmap.write(address, value)
 
@@ -57,6 +59,7 @@ class CPU:
 
     # Executes a single instruction; replacing run_instruction for now without error handling
     def step(self):
+        self.elapsed_cycles += 1
         if self.stall > 0:
             self.stall -= 1
             return
@@ -74,7 +77,7 @@ class CPU:
         self.cycles += instruction_cycles[opcode]
         f = self.opcode_to_instruction[opcode]
         if self.DEBUG:
-            print("CPU: Running instruction {} at address {}".format(f.__name__, old_PC))
+            print(self._cpu_dump(old_PC, f))
         res = f(opcode)
         if self.page_crossed:
             self.cycles += instruction_page_cycles[opcode]
@@ -158,9 +161,7 @@ class CPU:
         return address
 
     def get_absolute(self, offset=0):
-        lower = self.get_PC_byte()
-        upper = self.get_PC_byte()
-        addr = (upper << 8 | lower) + offset
+        addr = self.get_absolute_addr(offset)
         mem_byte = self.mread(addr)
         return mem_byte
 
@@ -627,7 +628,7 @@ class CPU:
     def JMP(self, opcode):
         #***** JMP - Jump *****
         if opcode == 0x4C:  # Absolute, 3, 3
-            self.PC = self.get_absolute()
+            self.PC = self.get_absolute_addr()
         elif opcode == 0x6C:  # Indirect, 3, 5
             self.PC = self.get_indirect()
         else:
@@ -1178,12 +1179,8 @@ class CPU:
         ]
         
     # Prints contents of registers
-    def _cpu_dump(self):
-        return "PC: " + str(hex(self.PC)) + "\n" + "Reg: " + str(self.reg) + "\n" + "Processor Status: " + bin(self.P)
-    
-    def __str__(self):
-        return self._cpu_dump()
-
+    def _cpu_dump(self, PC, f):
+        return "{}  {} {}".format('$' + hex(PC)[2:], f.__name__, self.elapsed_cycles - 1)
 
     @property
     def A(self):

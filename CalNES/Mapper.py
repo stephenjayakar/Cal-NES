@@ -15,9 +15,7 @@ class Mapper0:
     def __init__(self, nes):
         self.nes = nes
         self.rom = nes.rom
-        self.prgBanks = len(self.rom.prg_rom) // 0x4000
-        self.prgBank1 = 0
-        self.prgBank2 = self.prgBanks - 1
+        self.load_rom()
 
     def step(self):
         return None
@@ -26,32 +24,17 @@ class Mapper0:
         address &= 0xFFFF
 
         if address > 0x4017:
-            return self.nes.cpu.mem[address]
+            return self.nes.ram[address]
         elif address >= 0x2000:
             return self.read_register(address)
         else:
-            return self.nes.cpu.mem[address & 0x7FF]
-        
-        # if address < 0x2000:
-        #     return self.rom.chr_rom[address]
-        # elif address >= 0xC000:
-        #     index = self.prgBank2 * 0x4000 + int(address - 0xC000)
-        #     return self.rom.prg_rom[index]
-        # elif address >= 0x8000:
-        #     index = self.prgBank1 * 0x4000 + int(address - 0x8000)
-        #     return self.rom.prg_rom[index]
-        # elif address >= 0x6000:
-        #     index = int(address) - 0x6000
-        #     return self.rom.sram[index]
-        # else:
-        #     print("bad mapper read")
-        # return 0
+            return self.nes.ram[address & 0x7FF]
 
     def write(self, address, value):
         if address < 0x2000:
-            self.nes.cpu.mem[address & 0x7FF] = value
+            self.nes.ram[address & 0x7FF] = value
         elif address > 0x4017:
-            self.nes.cpu.mem[address] = value
+            self.nes.ram[address] = value
             # write to battery ram if applicable
         elif address > 0x2007 and address < 0x4000:
             self.write_register(0x2000 + (address & 0x7), value)
@@ -92,7 +75,51 @@ class Mapper0:
                 print('sound register probably')
             else:
                 print('invalid write')
-            
+
+    def load_rom(self):
+        self.load_prg_rom()
+        self.load_chr_rom()
+        self.load_battery()
+        # TODO: do we have to do this
+        print('supposed to irq')
+        # self.nes.cpu.irq()
+
+    def load_prg_rom(self):
+        if (self.rom.prg_rom_size > 1):
+            self.load_rom_bank(0, 0x8000)
+            self.load_rom_bank(1, 0xC000)
+        else:
+            self.load_rom_bank(0, 0x8000)
+            self.load_rom_bank(0, 0xC000)
+
+    def load_chr_rom(self):
+        if self.rom.chr_rom_size > 0:
+            if self.rom.chr_rom_size == 1:
+                self.load_vrom_bank(0, 0x0000)
+                self.load_vrom_bank(0, 0x1000)
+            else:
+                self.load_vrom_bank(0, 0x0000)
+                self.load_vrom_bank(1, 0x1000)
+
+    def load_battery(self):
+        print('load battery not impl')
+        return None
+        
+    def load_rom_bank(self, bank, address):
+        bank %= self.rom.prg_rom_size
+        size = 16 * 1024
+        bank_offset = size * bank
+        self.nes.ram[address: address + size] = self.rom.prg_rom[bank_offset: bank_offset + size]
+
+    def load_vrom_bank(self, bank, address):
+        print('load vrom bank not properly impl, bc ppu.mem -> vram')
+        if not self.rom.chr_rom_size:
+            return
+        # ppu trigger rendering
+
+        bank %= self.nes.rom.chr_rom_size
+        
+        self.nes.vram[address: address + 4096] = self.rom.chr_rom[:4096]        
 
 # class Mapper1:
 #     rom = None
