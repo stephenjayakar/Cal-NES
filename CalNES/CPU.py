@@ -37,9 +37,9 @@ class CPU:
         self.page_crossed = False
         self.done = False
         self.P = 0x24
-        # self.PC = self.read16(0xFFFC)
+        self.PC = self.read16(0xFFFC)
         # DEBUG, for nestest
-        self.PC = 0xC000
+        # self.PC = 0xC000
         self.SP = 0xFD
         self.A = 0
         self.X = 0
@@ -473,7 +473,7 @@ class CPU:
         else:
             return self.invalid_instruction(opcode)
 
-        result = self.A - operand
+        result = (self.A - operand) & 0xFF
         self.set_C(self.A >= operand)
         self.set_Z(result == 0)
         self.set_N(result >> 7)
@@ -489,7 +489,7 @@ class CPU:
         else:
             return self.invalid_instruction(opcode)
 
-        result = self.X - operand
+        result = (self.X - operand) & 0xFF
         self.set_C(self.X >= operand)
         self.set_Z(result == 0)
         self.set_N(result >> 7)
@@ -505,7 +505,7 @@ class CPU:
         else:
             return self.invalid_instruction(opcode)
 
-        result = self.Y - operand
+        result = (self.Y - operand) & 0xFF
         self.set_C(self.Y >= operand)
         self.set_Z(result == 0)
         self.set_N(result >> 7)
@@ -534,7 +534,7 @@ class CPU:
     def DEX(self, opcode):
         # ***** DEX - Decrement X Register *****
         if opcode == 0xCA:  # Implied 1, 2
-            self.X = self.X - 1
+            self.X = (self.X - 1) & 0xFF
             self.set_Z(self.X == 0)
             self.set_N(self.X >> 7)
 
@@ -544,7 +544,7 @@ class CPU:
     def DEY(self, opcode):
         # ***** DEY - Decrement Y Register *****
         if opcode == 0x88:  # Implied 1, 2
-            self.Y = self.Y - 1
+            self.Y = (self.Y - 1) & 0xFF
             self.set_Z(self.Y == 0)
             self.set_N(self.Y >> 7)
         else:

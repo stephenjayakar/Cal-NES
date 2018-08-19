@@ -61,9 +61,9 @@ class Mapper0:
 
     def write_register(self, address, value):
         if address >= 0x2000 and address <= 0x2007:
-            self.ppu.write_register(address, value)
+            self.nes.ppu.write_register(address, value)
         elif address == 0x4014:
-            self.ppu.write_register(address, value)
+            self.nes.ppu.write_register(address, value)
         elif address == 0x4015:
             print('sound channel switch')
         elif address == 0x4016:
