@@ -44,6 +44,8 @@ class Mapper0:
     def read_register(self, address):
         nibble = address >> 12
         if nibble in (2, 3):
+            return self.nes.ppu.read_register(0x2000 + address % 8)
+            """
             address &= 0x7
             # PPU Control Register 1
             if address in (0, 1, 2):
@@ -55,12 +57,13 @@ class Mapper0:
                 print('ppu sram not implemented')
             elif address == 0x7:
                 print('vram load not implemented')
+            """
         elif nibble == 4:
             print("joysticks and sound don't work lol")
         return 0
 
     def write_register(self, address, value):
-        if address >= 0x2000 and address <= 0x2007:
+        if address < 0x4000:
             self.nes.ppu.write_register(address, value)
         elif address == 0x4014:
             self.nes.ppu.write_register(address, value)
@@ -118,8 +121,9 @@ class Mapper0:
         # ppu trigger rendering
 
         bank %= self.nes.rom.chr_rom_size
+        offset = bank * 4096
         
-        self.nes.vram[address: address + 4096] = self.rom.chr_rom[:4096]        
+        self.nes.vram[address: address + 4096] = self.rom.chr_rom[offset: offset + 4096]
 
 # class Mapper1:
 #     rom = None

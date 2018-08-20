@@ -19,7 +19,8 @@ class NES:
         self.mmap = create_mapper(self, self.rom.mapper)
         self.cpu = CPU(self, DEBUG)
         self.cpu.reset()
-        self.ppu = PPU(self, ppuMEM(self))
+        #self.ppu = PPU(self, ppuMEM(self))
+        self.ppu = PPU(self)
         self.surface = pygame.display.set_mode([256 * 3, 240 * 3])
 
     def step(self):

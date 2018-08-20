@@ -15,3 +15,6 @@ temp
 *.txt
 instr_test-v5/
 nes-debug/
+roms/
+docs/
+venv/

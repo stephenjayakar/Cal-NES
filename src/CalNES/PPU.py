@@ -8,7 +8,7 @@ import pygame
 
 
 class PPU:
-    __slots__ = ['nes', 'mem', 'cycle', 'scanline', 'frame',
+    __slots__ = ['nes', 'cycle', 'scanline', 'frame',
                  'paletteData', 'nameTableData', 'oamData', 'front',
                  'back', 'v', 't', 'x', 'w', 'f', 'register',
                  'nmiOccurred', 'nmiOutput', 'nmiPrevious', 'nmiDelay',
@@ -23,7 +23,7 @@ class PPU:
                  'flagSpriteOverflow', 'oamAddress', 'bufferedData']
 
 
-    def __init__(self, nes, mem):
+    def __init__(self, nes):
         self.cycle = 0 # 0-340
         self.scanline = 0 # 0-261, 0-239=visible, 240=post, 241-260=vblank, 261=pre
         self.frame = 0 # frame counter
@@ -89,7 +89,6 @@ class PPU:
         self.bufferedData = 0 # byte // for buffered reads
 
         self.nes = nes
-        self.mem = mem
         self.back = Screen()
         self.front = Screen()
         self.reset()
@@ -205,13 +204,15 @@ class PPU:
             self.w = 0
 
     def readData(self):
-        value = self.mem.read_byte(self.v)
+        value = self.nes.vram[self.v]
+        print(self.v)
         if self.v % 0x4000 < 0x3F00:
             buffered = self.bufferedData
             self.bufferedData = value
             value = buffered
         else:
-            self.bufferedData = self.mem.read_byte(self.v - 0x1000)
+            self.bufferedData = self.nes.vram[self.v - 0x1000]
+            print(self.v - 0x1000)
         # increment address
         if self.flagIncrement == 0:
             self.v += 1
@@ -220,7 +221,8 @@ class PPU:
         return value
 
     def writeData(self, value):
-        self.mem.write_byte(self.v, value)
+        self.nes.vram[self.v] = value
+        print(self.v)
         if self.flagIncrement == 0:
             self.v += 1
         else:
@@ -284,26 +286,30 @@ class PPU:
     # this output is higher for some reason
     def fetchNameTableByte(self):
         address = 0x2000 | (self.v & 0x0FFF)
-        self.nameTableByte = self.mem.read_byte(address)
+        self.nameTableByte = self.nes.vram[address]
+        print(address)
 
     def fetchAttributeTableByte(self):
         address = 0x23C0 | (self.v & 0x0C00) | ((self.v >> 4) & 0x38) | ((self.v >> 2) & 0x07)
         shift = ((self.v >> 4) & 4) | (self.v & 2)
-        self.attributeTableByte = (((self.mem.read_byte(address) >> shift) & 3) << 2)
+        self.attributeTableByte = (((self.nes.vram[address] >> shift) & 3) << 2)
+        print(address)
 
     def fetchLowTileByte(self):
         fineY = (self.v >> 12) & 7
         table = self.flagBackgroundTable
         tile = self.nameTableByte
         address = 0x1000 * table + tile * 16 + fineY
-        self.lowTileByte = self.mem.read_byte(address)
+        self.lowTileByte = self.nes.vram[address]
+        print(address)
 
     def fetchHighTileByte(self):
         fineY = (self.v >> 12) & 7
         table = self.flagBackgroundTable
         tile = self.nameTableByte
         address = 0x1000 * table + tile * 16 + fineY
-        self.highTileByte = self.mem.read_byte(address + 8)
+        self.highTileByte = self.nes.vram[address + 8]
+        print(address + 8)
 
     def storeTileData(self):
         data = 0
@@ -390,8 +396,8 @@ class PPU:
             address = 0x1000 * table + tile * 16 + row
         address &= 0xFFFF
         a = (attributes & 3) << 2
-        lowTileByte = self.mem.read_byte(address)
-        highTileByte = self.mem.read_byte(address + 8)
+        lowTileByte = self.nes.vram[address]
+        highTileByte = self.nes.vram[address + 8]
         data = 0
         for i in range(8):
             p1, p2 = 0, 0
