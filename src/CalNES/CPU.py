@@ -37,9 +37,9 @@ class CPU:
         self.page_crossed = False
         self.done = False
         self.P = 0x24
-        self.PC = self.read16(0xFFFC)
+        # self.PC = self.read16(0xFFFC)
         # DEBUG, for nestest
-        # self.PC = 0xC000
+        self.PC = 0xC000
         self.SP = 0xFD
         self.A = 0
         self.X = 0
@@ -223,8 +223,6 @@ class CPU:
             operand = self.get_indirect_x()
         elif opcode == 0x71:  # (Indirect,Y) 2, 5
             operand = self.get_indirect_y()
-        else:
-            return self.invalid_instruction(opcode)
 
         result = self.A + operand + self.C
         # seeing if signed overflow
@@ -265,10 +263,7 @@ class CPU:
             self.A = self.A & self.get_indirect_x()
         elif opcode == 0x31:  # (Indirect,Y) 2, 5
             self.A = self.A & self.get_indirect_y()
-        else:
-            return self.invalid_instruction(opcode)
 
-        # update processor status
         self.set_Z(self.A == 0)
         self.set_N(self.A >> 7)
 
@@ -291,12 +286,10 @@ class CPU:
                 addr = self.get_absolute_addr()
             elif opcode == 0x1E:  # Absolute,X, 3, 7
                 addr = self.get_absolute_addr_x()
-            else:
-                return self.invalid_instruction(opcode)
 
             operand = self.mread(addr)
             result = (operand << 1) & 0xFF
-            self.set_mem(addr, result)
+            self.mwrite(addr, result)
 
         self.set_C(operand >> 7)
         self.set_Z(self.A == 0)
@@ -312,8 +305,6 @@ class CPU:
             if not self.C:
                 self.PC = addr
                 self.add_branch_cycles(addr)
-        else:
-            return self.invalid_instruction(opcode)
 
     def BCS(self, opcode):
         # ***** BCS - Branch if Carry Set *****
@@ -322,8 +313,6 @@ class CPU:
             if self.C:
                 self.PC = addr
                 self.add_branch_cycles(addr)
-        else:
-            return self.invalid_instruction(opcode)
 
     def BEQ(self, opcode):
         # ***** BEQ - Branch if Equal *****
@@ -332,8 +321,6 @@ class CPU:
             if self.Z:
                 self.PC = addr
                 self.add_branch_cycles(addr)
-        else:
-            return self.invalid_instruction(opcode)
 
     def BIT(self, opcode):
         # ***** BIT - Bit Test *****
@@ -341,8 +328,6 @@ class CPU:
             operand = self.get_zero_page()
         elif opcode == 0x2C:  # Absolute, 3, 4
             operand = self.get_absolute()
-        else:
-            return self.invalid_instruction(opcode)
 
         result = self.A & operand
         self.set_Z(result == 0)
@@ -356,8 +341,6 @@ class CPU:
             if self.N:
                 self.PC = addr
                 self.add_branch_cycles(addr)
-        else:
-            return self.invalid_instruction(opcode)
 
     def BNE(self, opcode):
         # ***** BNE - Branch if Not Equal *****
@@ -366,8 +349,6 @@ class CPU:
             if not self.Z:
                 self.PC = addr
                 self.add_branch_cycles(addr)
-        else:
-            return self.invalid_instruction(opcode)
 
     def BPL(self, opcode):
         # ***** BPL - Branch if Positive *****
@@ -376,8 +357,6 @@ class CPU:
             if not self.N:
                 self.PC = addr
                 self.add_branch_cycles(addr)
-        else:
-            return self.invalid_instruction(opcode)
 
     def BRK(self, opcode):
         # ***** BRK - Force Interrupt *****
@@ -398,8 +377,6 @@ class CPU:
             # Set flag
             self.set_B(1)
             self.set_I(1)
-        else:
-            return self.invalid_instruction(opcode)
 
     def BVC(self, opcode):
         # ***** BVC - Branch if OverFlow Clear *****
@@ -408,8 +385,6 @@ class CPU:
             if not self.V:
                 self.PC = addr
                 self.add_branch_cycles(addr)
-        else:
-            return self.invalid_instruction(opcode)
 
     def BVS(self, opcode):
         # ***** BVS - Branch if OverFlow Set *****
@@ -418,36 +393,26 @@ class CPU:
             if self.V:
                 self.PC = addr
                 self.add_branch_cycles(addr)
-        else:
-            return self.invalid_instruction(opcode)
 
     def CLC(self, opcode):
         # ***** CLC - Clear Carry Flag *****
         if opcode == 0x18:  # Implied, 1, 2
             self.set_C(0)
-        else:
-            return self.invalid_instruction(opcode)
 
     def CLD(self, opcode):
         # ***** CLD - Clear Decimal Mode *****
         if opcode == 0xD8:  # Implied, 1, 2
             self.set_D(0)
-        else:
-            return self.invalid_instruction(opcode)
 
     def CLI(self, opcode):
         # ***** CLI - Clear Interrupt Disable *****
         if opcode == 0x58:  # Implied, 1, 2
             self.set_I(0)
-        else:
-            return self.invalid_instruction(opcode)
 
     def CLV(self, opcode):
         # ***** CLV - Clear Overflow Flag *****
         if opcode == 0xB8:  # Implied, 1, 2
             self.set_V(0)
-        else:
-            return self.invalid_instruction(opcode)
 
     def CMD(self, opcode):
         print('CMD not implemented')
@@ -470,8 +435,6 @@ class CPU:
             operand = self.get_indirect_x()
         elif opcode == 0xD1:  # (Indirect),Y, 2, 5
             operand = self.get_indirect_y()
-        else:
-            return self.invalid_instruction(opcode)
 
         result = (self.A - operand) & 0xFF
         self.set_C(self.A >= operand)
@@ -486,8 +449,6 @@ class CPU:
             operand = self.get_zero_page()
         elif opcode == 0xEC:  # Absolute, 3, 4
             operand = self.get_absolute()
-        else:
-            return self.invalid_instruction(opcode)
 
         result = (self.X - operand) & 0xFF
         self.set_C(self.X >= operand)
@@ -502,8 +463,6 @@ class CPU:
             operand = self.get_zero_page()
         elif opcode == 0xCC:  # Absolute, 3, 4
             operand = self.get_absolute()
-        else:
-            return self.invalid_instruction(opcode)
 
         result = (self.Y - operand) & 0xFF
         self.set_C(self.Y >= operand)
@@ -523,8 +482,6 @@ class CPU:
             addr = self.get_absolute_addr()
         elif opcode == 0xDE:  # Absolute,X, 3, 7
             addr = self.get_absolute_addr_x()
-        else:
-            return self.invalid_instruction(opcode)
 
         result = (self.mread(addr) - 1) & 0xFF
         self.mwrite(addr, result)
@@ -538,17 +495,12 @@ class CPU:
             self.set_Z(self.X == 0)
             self.set_N(self.X >> 7)
 
-        else:
-            return self.invalid_instruction(opcode)
-
     def DEY(self, opcode):
         # ***** DEY - Decrement Y Register *****
         if opcode == 0x88:  # Implied 1, 2
             self.Y = (self.Y - 1) & 0xFF
             self.set_Z(self.Y == 0)
             self.set_N(self.Y >> 7)
-        else:
-            return self.invalid_instruction(opcode)
 
     def EOR(self, opcode):
         # ***** EOR - Exclusive OR *****
@@ -568,8 +520,6 @@ class CPU:
             self.A = self.A ^ self.get_indirect_x()
         elif opcode == 0x51:  # Indirect Y, 2, 5 (+1 if page crossed)
             self.A = self.A ^ self.get_indirect_y()
-        else:
-            return self.invalid_instruction(opcode)
 
         self.set_Z(self.A == 0)
         self.set_N(self.A >> 7)
@@ -584,8 +534,6 @@ class CPU:
             addr = self.get_absolute_addr()
         elif opcode == 0xFE:  # Absolute X, 3, 7
             addr = self.get_absolute_addr_x()
-        else:
-            return self.invalid_instruction(opcode)
 
         result = self.mread(addr) + 1
         self.mwrite(addr, result)
@@ -598,8 +546,6 @@ class CPU:
             self.X = self.X + 1
             self.set_Z(self.X == 0)
             self.set_N(self.X >> 7)
-        else:
-            return self.invalid_instruction(opcode)
 
     def INY(self, opcode):
         # ***** INY - Increment Y Register *****
@@ -607,8 +553,6 @@ class CPU:
             self.Y = self.Y + 1
             self.set_Z(self.Y == 0)
             self.set_N(self.Y >> 7)
-        else:
-            return self.invalid_instruction(opcode)
 
     def ISC(self, opcode):
         """****** ISC - illegal *****
@@ -635,8 +579,6 @@ class CPU:
             self.PC = self.get_absolute_addr()
         elif opcode == 0x6C:  # Indirect, 3, 5
             self.PC = self.get_indirect()
-        else:
-            return self.invalid_instruction(opcode)
 
     def JSR(self, opcode):
         # ***** JSR - Jump to Subroutine *****
@@ -649,8 +591,6 @@ class CPU:
                 self.mwrite(pointer, b)
                 pointer += 1
             self.PC = jump_addr
-        else:
-            return self.invalid_instruction(opcode)
 
     def KIL(self, opcode):
         print('KIL not implemented!')
@@ -679,8 +619,6 @@ class CPU:
             self.A = self.get_indirect_x()
         elif opcode == 0xB1:  # Indirect Y, 2, 5 (+1 if page crossed)
             self.A = self.get_indirect_y()
-        else:
-            return self.invalid_instruction(opcode)
 
         self.set_Z(self.A == 0)
         self.set_N(self.A >> 7)
@@ -697,8 +635,6 @@ class CPU:
             self.X = self.get_absolute()
         elif opcode == 0xBE:  # Absolute X, 3, 4 (+1 if page crossed)
             self.X = self.get_absolute_x()
-        else:
-            return self.invalid_instruction(opcode)
 
         self.set_Z(self.X == 0)
         self.set_N(self.X >> 7)
@@ -715,8 +651,6 @@ class CPU:
             self.Y = self.get_absolute()
         elif opcode == 0xBC:  # Absolute X, 3, 4 (+1 if page crossed)
             self.Y = self.get_absolute_x()
-        else:
-            return self.invalid_instruction(opcode)
 
         self.set_Z(self.Y == 0)
         self.set_N(self.Y >> 7)
@@ -737,8 +671,6 @@ class CPU:
                 addr = self.get_absolute_addr()
             elif opcode == 0x5E:  # Absolute,X, 3, 7
                 addr = self.get_absolute_addr_x()
-            else:
-                return self.invalid_instruction(opcode)
 
             operand = self.mread(addr)
             result = operand >> 1
@@ -750,10 +682,7 @@ class CPU:
 
     def NOP(self, opcode):
         # ***** NOP - No Operation *****
-        # if opcode == 0xEA:  # Implied, 1, 2
         pass
-        # else:
-        #     return self.invalid_instruction(opcode)
 
     def ORA(self, opcode):
         # ***** ORA - Logical Inclusive OR *****
@@ -773,8 +702,6 @@ class CPU:
             operand = self.get_indirect_x()
         elif opcode == 0x11:  # Indirect Y, 2, 5 (+1 if page crossed)
             operand = self.get_indirect_y()
-        else:
-            return self.invalid_instruction(opcode)
 
         self.A = self.A | operand
         self.set_Z(self.A == 0)
@@ -785,8 +712,6 @@ class CPU:
         if opcode == 0x48:  # Implied, 1, 3
             self.SP -= 1
             self.mwrite(self.SP, self.A)
-        else:
-            return self.invalid_instruction(opcode)
 
     def PHP(self, opcode):
         # ***** PHP - Push Processor Status *****
@@ -795,8 +720,6 @@ class CPU:
         # bit 4 is 1 if from PHP
         proc = (self.P % 256) | 0b110000
         self.mwrite(self.SP, proc)
-        # else:
-        #     return self.invalid_instruction(opcode)
 
     def PLA(self, opcode):
         # ***** PLA - Pull Accumulator *****
@@ -805,8 +728,6 @@ class CPU:
             self.SP += 1
             self.set_Z(self.A == 0)
             self.set_N(self.A >> 7)
-        else:
-            return self.invalid_instruction(opcode)
 
     def PLP(self, opcode):
         # ***** PLP - Pull Processor Status *****
@@ -815,8 +736,6 @@ class CPU:
             self.set_B(0)
             self.set_bit_5(1)
             self.SP += 1
-        else:
-            return self.invalid_instruction(opcode)
 
     def RLA(self, opcode):
         print('RLA not implemented!')
@@ -836,8 +755,6 @@ class CPU:
                 addr = self.get_absolute_addr()
             elif opcode == 0x3E:  # Absolute X, 3, 7
                 addr = self.get_absolute_addr_x()
-            else:
-                return self.invalid_instruction(opcode)
 
             operand = self.mread(addr)
             result = (operand << 1) | self.C
@@ -862,8 +779,6 @@ class CPU:
                 addr = self.get_absolute_addr()
             elif opcode == 0x7E:  # Absolute X, 3, 7
                 addr = self.get_absolute_addr_x()
-            else:
-                return self.invalid_instruction(opcode)
 
             operand = self.mread(addr)
             result = (operand >> 1) | (self.C << 7)
@@ -888,8 +803,6 @@ class CPU:
             upper = loaded[2]
             self.PC = (upper << 8) | (lower & 0xFF)
             self.SP += 3
-        else:
-            return self.invalid_instruction(opcode)
 
     def RTS(self, opcode):
         # ***** RTS - Return from Subroutine *****
@@ -902,8 +815,6 @@ class CPU:
             upper = loaded[1]
             self.PC = (upper << 8) | lower
             self.SP += 2
-        else:
-            return self.invalid_instruction(opcode)
 
     def SAX(self, opcode):
         print('SAX not implemented')
@@ -926,8 +837,6 @@ class CPU:
             operand = self.get_indirect_x()
         elif opcode == 0xF1:  # Indirect Y, 2, 5 (+1 if page crossed)
             operand = self.get_indirect_y()
-        else:
-            return self.invalid_instruction(opcode)
 
         old_A = self.A
         result = self.A - operand - (1 - self.C)
@@ -946,22 +855,15 @@ class CPU:
         # ***** SEC - Set Carry Flag *****
         if opcode == 0x38:  # Implied, 1, 2
             self.set_C(1)
-        else:
-            return self.invalid_instruction(opcode)
 
     def SED(self, opcode):
         # ***** SED - Set Decimal Flag *****
         if opcode == 0xF8:  # Implied, 1, 2
             self.set_D(1)
-        else:
-            return self.invalid_instruction(opcode)
 
     def SEI(self, opcode):
         # ***** SEI - Set Interrupt Disable *****
-        # if opcode == 0x78:  # Implied, 1, 2
         self.set_I(1)
-        # else:
-        #   return self.invalid_instruction(opcode)
 
     def SKW(self, opcode):
         """***** SKW - Skip Next Word *****
@@ -1004,8 +906,6 @@ class CPU:
             addr = self.get_indirect_addr_x()
         elif opcode == 0x91:  # Indirect Y, 2, 6
             addr = self.get_indirect_addr_y()
-        else:
-            return self.invalid_instruction(opcode)
 
         self.mwrite(addr, self.A)
 
@@ -1017,8 +917,6 @@ class CPU:
             addr = self.get_zero_page_addr_y()
         elif opcode == 0x8E:  # Absolute, 3, 4
             addr = self.get_absolute_addr()
-        else:
-            return self.invalid_instruction(opcode)
 
         self.mwrite(addr, self.X)
 
@@ -1030,8 +928,6 @@ class CPU:
             addr = self.get_zero_page_addr_x()
         elif opcode == 0x8C:  # Absolute, 3, 4
             addr = self.get_absolute_addr()
-        else:
-            return self.invalid_instruction(opcode)
 
         self.mwrite(addr, self.Y)
 
@@ -1044,8 +940,6 @@ class CPU:
             self.X = self.A
             self.set_Z(self.X == 0)
             self.set_N(self.X >> 7)
-        else:
-            return self.invalid_instruction(opcode)
 
     def TAY(self, opcode):
         # ***** TAY - Transfer Accumulator to Y *****
@@ -1053,8 +947,6 @@ class CPU:
             self.Y = self.A
             self.set_Z(self.Y == 0)
             self.set_N(self.Y >> 7)
-        else:
-            return self.invalid_instruction(opcode)
 
     def TSX(self, opcode):
         # ***** TSX - Transfer Stack Pointer to X *****
@@ -1062,8 +954,6 @@ class CPU:
             self.X = self.SP
             self.set_Z(self.X == 0)
             self.set_N(self.X >> 7)
-        else:
-            return self.invalid_instruction(opcode)
 
     def TXA(self, opcode):
         # ***** TXA - Transfer X to Accumulator *****
@@ -1071,15 +961,11 @@ class CPU:
             self.A = self.X
             self.set_Z(self.A == 0)
             self.set_N(self.A >> 7)
-        else:
-            return self.invalid_instruction(opcode)
 
     def TXS(self, opcode):
         # ***** TXS - Transfer X to Stack Pointer *****
         if opcode == 0x9A:  # Implied, 1, 2
             self.SP = self.X
-        else:
-            return self.invalid_instruction(opcode)
 
     def TYA(self, opcode):
         # ***** TYA - Transfer Y to Accumulator *****
@@ -1087,15 +973,9 @@ class CPU:
             self.A = self.Y
             self.set_Z(self.A == 0)
             self.set_N(self.A >> 7)
-        else:
-            return self.invalid_instruction(opcode)
 
     def XAA(self, opcode):
         print('XAA not implemented')
-
-    def invalid_instruction(self, opcode):
-        print("Invalid instruction: " + hex(opcode))
-        raise Exception
 
     @property
     def C(self):
