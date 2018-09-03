@@ -10,7 +10,7 @@ import pygame
 class PPU:
     __slots__ = ['nes', 'cycle', 'scanline', 'frame',
                  'paletteData', 'nameTableData', 'oamData', 'front',
-                 'back', 'v', 't', 'x', 'w', 'f', 'register',
+                 'back', '_v', 't', 'x', 'w', 'f', 'register',
                  'nmiOccurred', 'nmiOutput', 'nmiPrevious', 'nmiDelay',
                  'nameTableByte', 'attributeTableByte', 'lowTileByte',
                  'highTileByte', 'tileData', 'spriteCount', 'spritePatterns',
@@ -33,7 +33,7 @@ class PPU:
         self.oamData = [0] * 256
 
         # PPU Registers
-        self.v = 0 # current vram address, 15b
+        self._v = 0 # current vram address, 15b
         self.t = 0 # temp vram address, 15b
         self.x = 0 # fine x scroll 3b
         self.w = 0 # write toggle 1b
@@ -92,6 +92,15 @@ class PPU:
         self.back = Screen()
         self.front = Screen()
         self.reset()
+
+    @property
+    def v(self):
+        return self._v
+    
+    @v.setter
+    def v(self, value):
+        print(value)
+        self._v = value
 
     def reset(self):
         self.cycle = 340
