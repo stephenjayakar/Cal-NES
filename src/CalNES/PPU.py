@@ -99,7 +99,6 @@ class PPU:
     
     @v.setter
     def v(self, value):
-        print(value)
         self._v = value
 
     def reset(self):
@@ -154,7 +153,6 @@ class PPU:
         self.flagNameTable = ctrl & 3
         self.flagIncrement = (ctrl >> 2) & 1
         self.flagSpriteTable = (ctrl >> 3) & 1
-        # self.flagSpriteTable = 0
         self.flagBackgroundTable = (ctrl >> 4) & 1
         self.flagSpriteSize = (ctrl >> 5) & 1
         self.flagMasterSlave = (ctrl >> 6) & 1
@@ -465,6 +463,7 @@ class PPU:
                 self.f ^= 1
 
     def step(self):
+        print(self)
         self.tick()
         renderingEnabled = self.flagShowBackground != 0 or self.flagShowSprites != 0
         preline = self.scanline == 261
@@ -512,6 +511,53 @@ class PPU:
             self.clearVerticalBlank()
             self.flagSpriteZeroHit = 0
             self.flagSpriteOverflow = 0
+
+    def __str__(self):
+        return " ".join(map(str, self.debug()))
+
+    # return debug string of all attributes
+    def debug(self):
+        return [self.cycle,
+                self.scanline,
+                self.frame,
+                self._v,
+                self.t,
+                self.x,
+                self.w,
+                self.f,
+                self.register,
+                self.nmiOccurred,
+                self.nmiOutput,
+                self.nmiPrevious,
+                self.nmiDelay,
+                self.nameTableByte,
+                self.attributeTableByte,
+                self.lowTileByte,
+                self.highTileByte,
+                self.tileData,
+                # self.spriteCount,
+                # self.spritePatterns,
+                # self.spritePositions,
+                # self.spritePriorities,
+                # self.spriteIndexes,
+                self.flagNameTable,
+                self.flagIncrement,
+                self.flagSpriteTable,
+                self.flagBackgroundTable,
+                self.flagSpriteSize,
+                self.flagMasterSlave,
+                self.flagGrayscale,
+                self.flagShowLeftBackground,
+                self.flagShowLeftSprites,
+                self.flagShowBackground,
+                self.flagShowSprites,
+                self.flagRedTint,
+                self.flagGreenTint,
+                self.flagBlueTint,
+                self.flagSpriteZeroHit,
+                self.flagSpriteOverflow,
+                self.oamAddress,
+                self.bufferedData]
 
 Palette = [0] * 64
 colors = [0x666666, 0x002A88, 0x1412A7, 0x3B00A4, 0x5C007E, 0x6E0040, 0x6C0600, 0x561D00,
