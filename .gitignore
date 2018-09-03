@@ -18,3 +18,8 @@ nes-debug/
 roms/
 docs/
 venv/
+*.sh
+*.bat
+*.debug
+*.diff
+*.dat
