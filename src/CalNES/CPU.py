@@ -1,14 +1,11 @@
 from enum import Enum
 
-
 # Short Hex
 def shex(val):
     return hex(val)[2:].upper()
 
-
 def pages_differ(a, b):
     return (a & 0xFF00) != (b & 0xFF00)
-
 
 # interrupts
 class Interrupt(Enum):
@@ -33,17 +30,18 @@ class CPU:
         self.stall = 0
         self.cycles = 0
         self.elapsed_cycles = 0
-        self.interrupt = Interrupt.none
+        # self.interrupt = Interrupt.none
         self.page_crossed = False
         self.done = False
         self.P = 0x24
-        # self.PC = self.read16(0xFFFC)
+        self.PC = self.read16(0xFFFC)
         # DEBUG, for nestest
-        self.PC = 0xC000
+        # self.PC = 0xC000
         self.SP = 0xFD
         self.A = 0
         self.X = 0
         self.Y = 0
+        self.interrupt = Interrupt.none
         """$4017 = $00 (frame irq enabled)
            $4015 = $00 (all channels disabled)
            $4000-$400F = $00 (not sure about $4010-$4013)"""
@@ -92,7 +90,7 @@ class CPU:
     def triggerNMI(self):
         self.interrupt = Interrupt.NMI
 
-    def triggerIRQ(self):
+    def trigger_IRQ(self):
         if self.I == 0:
             self.interrupt = Interrupt.IRQ
 
@@ -1097,8 +1095,6 @@ class CPU:
 
         return "{}    {}    A:{} X:{} Y:{} P:{} SP:{} CYC:{}".format(PC_str, f.__name__, A_str, X_str, Y_str, P_str,
                                                                      SP_str, cycles)
-
-        # return "{}  {} {} {}  {}         A:{} X:{} Y:{} P:{} SP:{} CYC:{}".format(PC_str, vals[0], vals[1], vals[2], f.__name__, A_str, X_str, Y_str, P_str, SP_str, cycles)
 
     @property
     def A(self):

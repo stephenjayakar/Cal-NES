@@ -205,14 +205,12 @@ class PPU:
 
     def readData(self):
         value = self.nes.vram[self.v]
-        print(self.v)
         if self.v % 0x4000 < 0x3F00:
             buffered = self.bufferedData
             self.bufferedData = value
             value = buffered
         else:
             self.bufferedData = self.nes.vram[self.v - 0x1000]
-            print(self.v - 0x1000)
         # increment address
         if self.flagIncrement == 0:
             self.v += 1
@@ -222,7 +220,6 @@ class PPU:
 
     def writeData(self, value):
         self.nes.vram[self.v] = value
-        print(self.v)
         if self.flagIncrement == 0:
             self.v += 1
         else:
@@ -287,13 +284,11 @@ class PPU:
     def fetchNameTableByte(self):
         address = 0x2000 | (self.v & 0x0FFF)
         self.nameTableByte = self.nes.vram[address]
-        print(address)
 
     def fetchAttributeTableByte(self):
         address = 0x23C0 | (self.v & 0x0C00) | ((self.v >> 4) & 0x38) | ((self.v >> 2) & 0x07)
         shift = ((self.v >> 4) & 4) | (self.v & 2)
         self.attributeTableByte = (((self.nes.vram[address] >> shift) & 3) << 2)
-        print(address)
 
     def fetchLowTileByte(self):
         fineY = (self.v >> 12) & 7
@@ -301,7 +296,6 @@ class PPU:
         tile = self.nameTableByte
         address = 0x1000 * table + tile * 16 + fineY
         self.lowTileByte = self.nes.vram[address]
-        print(address)
 
     def fetchHighTileByte(self):
         fineY = (self.v >> 12) & 7
@@ -309,7 +303,6 @@ class PPU:
         tile = self.nameTableByte
         address = 0x1000 * table + tile * 16 + fineY
         self.highTileByte = self.nes.vram[address + 8]
-        print(address + 8)
 
     def storeTileData(self):
         data = 0

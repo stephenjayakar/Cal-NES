@@ -1,13 +1,9 @@
 def create_mapper(nes, mapper_number):
     if mapper_number == 0:
         return Mapper0(nes)
-    # elif mapper == 1:
-    #     return Mapper1(rom)
-    # elif mapper == 2:
-    #     return Mapper2(rom)
     else:
-        return None
-
+        print("mapper {} not implemented".format(mapper_number))
+        exit()
 
 class Mapper0:
     __slots__ = ['rom', 'prgBanks', 'prgBank1', 'prgBank2', 'nes']
@@ -15,6 +11,8 @@ class Mapper0:
     def __init__(self, nes):
         self.nes = nes
         self.rom = nes.rom
+
+    def reset(self):
         self.load_rom()
 
     def step(self):
@@ -83,9 +81,7 @@ class Mapper0:
         self.load_prg_rom()
         self.load_chr_rom()
         self.load_battery()
-        # TODO: do we have to do this
-        print('supposed to irq')
-        # self.nes.cpu.irq()
+        # do we trigger irq?
 
     def load_prg_rom(self):
         if (self.rom.prg_rom_size > 1):
@@ -115,8 +111,8 @@ class Mapper0:
         self.nes.ram[address: address + size] = self.rom.prg_rom[bank_offset: bank_offset + size]
 
     def load_vrom_bank(self, bank, address):
-        print('load vrom bank not properly impl, bc ppu.mem -> vram')
         if not self.rom.chr_rom_size:
+            print('no chr rom')
             return
         # ppu trigger rendering
 

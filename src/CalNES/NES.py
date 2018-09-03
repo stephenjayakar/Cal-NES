@@ -1,5 +1,5 @@
 from .ROM import ROM
-from .RAM import cpuMEM, ppuMEM
+from .RAM import ppuMEM
 from .CPU import CPU
 from .PPU import PPU
 from .Mapper import create_mapper
@@ -14,9 +14,9 @@ class NES:
     def __init__(self, rom_name, DEBUG=False):
         self.rom = ROM(rom_name)
         self.ram = bytearray(0x10000)
-        # is this the right size?
-        self.vram = bytearray(0x10000)
+        self.vram = ppuMEM(self)
         self.mmap = create_mapper(self, self.rom.mapper)
+        self.mmap.reset()
         self.cpu = CPU(self, DEBUG)
         self.cpu.reset()
         #self.ppu = PPU(self, ppuMEM(self))
