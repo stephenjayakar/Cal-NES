@@ -8,9 +8,9 @@ import pygame
 
 
 class PPU:
-    __slots__ = ['nes', 'mem', 'cycle', 'scanline', 'frame',
+    __slots__ = ['nes', 'cycle', 'scanline', 'frame',
                  'paletteData', 'nameTableData', 'oamData', 'front',
-                 'back', 'v', 't', 'x', 'w', 'f', 'register',
+                 'back', '_v', 't', 'x', 'w', 'f', 'register',
                  'nmiOccurred', 'nmiOutput', 'nmiPrevious', 'nmiDelay',
                  'nameTableByte', 'attributeTableByte', 'lowTileByte',
                  'highTileByte', 'tileData', 'spriteCount', 'spritePatterns',
@@ -23,7 +23,7 @@ class PPU:
                  'flagSpriteOverflow', 'oamAddress', 'bufferedData']
 
 
-    def __init__(self, nes, mem):
+    def __init__(self, nes):
         self.cycle = 0 # 0-340
         self.scanline = 0 # 0-261, 0-239=visible, 240=post, 241-260=vblank, 261=pre
         self.frame = 0 # frame counter
@@ -33,7 +33,7 @@ class PPU:
         self.oamData = [0] * 256
 
         # PPU Registers
-        self.v = 0 # current vram address, 15b
+        self._v = 0 # current vram address, 15b
         self.t = 0 # temp vram address, 15b
         self.x = 0 # fine x scroll 3b
         self.w = 0 # write toggle 1b
@@ -89,10 +89,17 @@ class PPU:
         self.bufferedData = 0 # byte // for buffered reads
 
         self.nes = nes
-        self.mem = mem
         self.back = Screen()
         self.front = Screen()
         self.reset()
+
+    @property
+    def v(self):
+        return self._v
+    
+    @v.setter
+    def v(self, value):
+        self._v = value
 
     def reset(self):
         self.cycle = 340
@@ -112,7 +119,7 @@ class PPU:
             address -= 16
         self.paletteData[address] = value
 
-    def readRegister(self, address):
+    def read_register(self, address):
         if address == 0x2002:
             return self.readStatus()
         if address == 0x2004:
@@ -122,7 +129,7 @@ class PPU:
         return 0
 
     # consider rewriting this with hashing
-    def writeRegister(self, address, value):
+    def write_register(self, address, value):
         value = value & 0xFF
         self.register = value
         if address == 0x2000:
@@ -146,7 +153,6 @@ class PPU:
         self.flagNameTable = ctrl & 3
         self.flagIncrement = (ctrl >> 2) & 1
         self.flagSpriteTable = (ctrl >> 3) & 1
-        # self.flagSpriteTable = 0
         self.flagBackgroundTable = (ctrl >> 4) & 1
         self.flagSpriteSize = (ctrl >> 5) & 1
         self.flagMasterSlave = (ctrl >> 6) & 1
@@ -205,13 +211,13 @@ class PPU:
             self.w = 0
 
     def readData(self):
-        value = self.mem.read_byte(self.v)
+        value = self.nes.vram[self.v]
         if self.v % 0x4000 < 0x3F00:
             buffered = self.bufferedData
             self.bufferedData = value
             value = buffered
         else:
-            self.bufferedData = self.mem.read_byte(self.v - 0x1000)
+            self.bufferedData = self.nes.vram[self.v - 0x1000]
         # increment address
         if self.flagIncrement == 0:
             self.v += 1
@@ -220,7 +226,7 @@ class PPU:
         return value
 
     def writeData(self, value):
-        self.mem.write_byte(self.v, value)
+        self.nes.vram[self.v] = value
         if self.flagIncrement == 0:
             self.v += 1
         else:
@@ -284,26 +290,26 @@ class PPU:
     # this output is higher for some reason
     def fetchNameTableByte(self):
         address = 0x2000 | (self.v & 0x0FFF)
-        self.nameTableByte = self.mem.read_byte(address)
+        self.nameTableByte = self.nes.vram[address]
 
     def fetchAttributeTableByte(self):
         address = 0x23C0 | (self.v & 0x0C00) | ((self.v >> 4) & 0x38) | ((self.v >> 2) & 0x07)
         shift = ((self.v >> 4) & 4) | (self.v & 2)
-        self.attributeTableByte = (((self.mem.read_byte(address) >> shift) & 3) << 2)
+        self.attributeTableByte = (((self.nes.vram[address] >> shift) & 3) << 2)
 
     def fetchLowTileByte(self):
         fineY = (self.v >> 12) & 7
         table = self.flagBackgroundTable
         tile = self.nameTableByte
         address = 0x1000 * table + tile * 16 + fineY
-        self.lowTileByte = self.mem.read_byte(address)
+        self.lowTileByte = self.nes.vram[address]
 
     def fetchHighTileByte(self):
         fineY = (self.v >> 12) & 7
         table = self.flagBackgroundTable
         tile = self.nameTableByte
         address = 0x1000 * table + tile * 16 + fineY
-        self.highTileByte = self.mem.read_byte(address + 8)
+        self.highTileByte = self.nes.vram[address + 8]
 
     def storeTileData(self):
         data = 0
@@ -390,8 +396,8 @@ class PPU:
             address = 0x1000 * table + tile * 16 + row
         address &= 0xFFFF
         a = (attributes & 3) << 2
-        lowTileByte = self.mem.read_byte(address)
-        highTileByte = self.mem.read_byte(address + 8)
+        lowTileByte = self.nes.vram[address]
+        highTileByte = self.nes.vram[address + 8]
         data = 0
         for i in range(8):
             p1, p2 = 0, 0
@@ -504,6 +510,53 @@ class PPU:
             self.clearVerticalBlank()
             self.flagSpriteZeroHit = 0
             self.flagSpriteOverflow = 0
+
+    def __str__(self):
+        return " ".join(map(str, self.debug()))
+
+    # return debug string of all attributes
+    def debug(self):
+        return [self.cycle,
+                self.scanline,
+                self.frame,
+                self._v,
+                self.t,
+                self.x,
+                self.w,
+                self.f,
+                self.register,
+                self.nmiOccurred,
+                self.nmiOutput,
+                self.nmiPrevious,
+                self.nmiDelay,
+                self.nameTableByte,
+                self.attributeTableByte,
+                self.lowTileByte,
+                self.highTileByte,
+                self.tileData,
+                # self.spriteCount,
+                # self.spritePatterns,
+                # self.spritePositions,
+                # self.spritePriorities,
+                # self.spriteIndexes,
+                self.flagNameTable,
+                self.flagIncrement,
+                self.flagSpriteTable,
+                self.flagBackgroundTable,
+                self.flagSpriteSize,
+                self.flagMasterSlave,
+                self.flagGrayscale,
+                self.flagShowLeftBackground,
+                self.flagShowLeftSprites,
+                self.flagShowBackground,
+                self.flagShowSprites,
+                self.flagRedTint,
+                self.flagGreenTint,
+                self.flagBlueTint,
+                self.flagSpriteZeroHit,
+                self.flagSpriteOverflow,
+                self.oamAddress,
+                self.bufferedData]
 
 Palette = [0] * 64
 colors = [0x666666, 0x002A88, 0x1412A7, 0x3B00A4, 0x5C007E, 0x6E0040, 0x6C0600, 0x561D00,
