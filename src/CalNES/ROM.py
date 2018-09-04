@@ -40,7 +40,7 @@ class ROM:
             self.prg_rom_size = self.header[4]
 
             # Number of 8192 byte character ROM pages
-            self.chr_rom_size = self.header[5]
+            self.chr_rom_size = self.header[5] * 2
 
             # Bitfield 1
             self.flags6 = self.header[6]
