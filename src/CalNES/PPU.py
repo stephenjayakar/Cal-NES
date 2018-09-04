@@ -463,7 +463,6 @@ class PPU:
                 self.f ^= 1
 
     def step(self):
-        print(self)
         self.tick()
         renderingEnabled = self.flagShowBackground != 0 or self.flagShowSprites != 0
         preline = self.scanline == 261
