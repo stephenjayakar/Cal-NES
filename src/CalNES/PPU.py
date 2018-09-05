@@ -236,7 +236,7 @@ class PPU:
         cpu = self.nes.cpu
         address = (value << 8) & 0xFFFF
         for i in range(256):
-            self.oamData[self.oamAddress] = self.nes.ram.read_byte(address)
+            self.oamData[self.oamAddress] = self.nes.mmap.read(address)
             # self.oamAddress = (self.oamAddress + 1) & 0xFF
             self.oamAddress += 1
             address += 1

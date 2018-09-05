@@ -15,7 +15,7 @@ class Interrupt(Enum):
 
 
 class CPU:
-    __slots__ = ['done', 'mem', 'PC', 'P', 'SP', 'reg', 'opcode_to_instruction', 'stall', 'cycles', 'interrupt',
+    __slots__ = ['done', 'mem', 'PC', 'P', '_SP', 'reg', 'opcode_to_instruction', 'stall', 'cycles', 'interrupt',
                  'page_crossed', 'debug', 'nes', 'DEBUG', 'elapsed_cycles']
 
     def __init__(self, nes, DEBUG):
@@ -37,7 +37,7 @@ class CPU:
         self.PC = self.read16(0xFFFC)
         # DEBUG, for nestest
         # self.PC = 0xC000
-        self.SP = 0xFD
+        self._SP = 0xFD
         self.A = 0
         self.X = 0
         self.Y = 0
@@ -1002,6 +1002,14 @@ class CPU:
     @property
     def N(self):
         return self.get_bit_P(7)
+
+    @property
+    def SP(self):
+        return self._SP
+
+    @SP.setter
+    def SP(self, value):
+        self._SP = value & 0xFF
 
     # TODO: change these to setters
     def set_C(self, bit):

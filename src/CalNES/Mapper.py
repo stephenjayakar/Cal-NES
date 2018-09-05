@@ -43,21 +43,13 @@ class Mapper0:
         nibble = address >> 12
         if nibble in (2, 3):
             return self.nes.ppu.read_register(0x2000 + address % 8)
-            """
-            address &= 0x7
-            # PPU Control Register 1
-            if address in (0, 1, 2):
-                return self.nes.ppu.read_register(0x2000 + address)
-            elif address in (3, 5, 6):
-                return 0
-            # Sprite Memory Read
-            elif address == 0x4:
-                print('ppu sram not implemented')
-            elif address == 0x7:
-                print('vram load not implemented')
-            """
         elif nibble == 4:
-            print("joysticks and sound don't work lol")
+            # Joy 1
+            if address == 0x4016:
+                # TODO: this definitely isn't right, but temporary always 1 :)
+                return 0x41
+            else:
+                print("APU or Joy 2 at address {}".format(address))
         return 0
 
     def write_register(self, address, value):
