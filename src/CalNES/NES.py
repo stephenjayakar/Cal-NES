@@ -19,7 +19,6 @@ class NES:
         self.mmap.reset()
         self.cpu = CPU(self, DEBUG)
         self.cpu.reset()
-        #self.ppu = PPU(self, ppuMEM(self))
         self.ppu = PPU(self)
         self.surface = pygame.display.set_mode([256 * 3, 240 * 3])
 
@@ -32,9 +31,8 @@ class NES:
         for i in range(3):
             self.ppu.step()
             self.mmap.step()
-        #for i in range(cpu_cycles):
+        # for i in range(cpu_cycles):
             # step the apu
-         #   pass 
 
     def current_buffer(self):
         return self.ppu.front

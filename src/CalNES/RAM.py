@@ -30,7 +30,7 @@ class ppuMEM:
             mode = self.nes.rom.mirroring
             self.nes.ppu.nameTableData[mirror_address(mode, address) % 2048] = value
         elif address < 0x4000:
-            self.nes.ppu.writePalette(address % 32, value)
+            self.nes.ppu.write_palette(address % 32, value)
         else:
             print("invalid ppu memory write at " + str(address))
 

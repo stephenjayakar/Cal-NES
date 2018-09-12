@@ -20,4 +20,3 @@ while True:
     if cur_time - timer >= 0.16639:
         timer = cur_time
         n.update_display()
-

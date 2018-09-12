@@ -105,27 +105,27 @@ class PPU:
         self.cycle = 340
         self.scanline = 240
         self.frame = 0
-        self.writeControl(0)
-        self.writeMask(0)
-        self.writeOAMAddress(0)
+        self.write_control(0)
+        self.write_mask(0)
+        self.write_OAM_address(0)
 
-    def readPalette(self, address):
+    def read_palette(self, address):
         if address >= 16 and address % 4 == 0:
             address -= 16
         return self.paletteData[address % 32]
 
-    def writePalette(self, address, value):
+    def write_palette(self, address, value):
         if address >= 16 and address % 4 == 0:
             address -= 16
         self.paletteData[address] = value
 
     def read_register(self, address):
         if address == 0x2002:
-            return self.readStatus()
+            return self.read_status()
         if address == 0x2004:
-            return self.readOAMData()
+            return self.read_OAM_data()
         if address == 0x2007:
-            return self.readData()
+            return self.read_data()
         return 0
 
     # consider rewriting this with hashing
@@ -133,23 +133,23 @@ class PPU:
         value = value & 0xFF
         self.register = value
         if address == 0x2000:
-            self.writeControl(value)
+            self.write_control(value)
         if address == 0x2001:
-            self.writeMask(value)
+            self.write_mask(value)
         if address == 0x2003:
-            self.writeOAMAddress(value)
+            self.write_OAM_address(value)
         if address == 0x2004:
-            self.writeOAMData(value)
+            self.write_OAM_data(value)
         if address == 0x2005:
-            self.writeScroll(value)
+            self.write_scroll(value)
         if address == 0x2006:
-            self.writeAddress(value)
+            self.write_address(value)
         if address == 0x2007:
-            self.writeData(value)
+            self.write_data(value)
         if address == 0x4014:
-            self.writeDMA(value)
+            self.write_DMA(value)
 
-    def writeControl(self, ctrl):
+    def write_control(self, ctrl):
         self.flagNameTable = ctrl & 3
         self.flagIncrement = (ctrl >> 2) & 1
         self.flagSpriteTable = (ctrl >> 3) & 1
@@ -160,7 +160,7 @@ class PPU:
         self.nmiChange()
         self.t = (self.t & 0xF3FF) | ((ctrl & 0x03) << 10)
 
-    def writeMask(self, mask):
+    def write_mask(self, mask):
         self.flagGrayscale = mask & 1
         self.flagShowLeftBackground = (mask >> 1) & 1
         self.flagShowLeftSprites = (mask >> 2) & 1
@@ -170,7 +170,7 @@ class PPU:
         self.flagGreenTint = (mask >> 6) & 1
         self.flagBlueTint = (mask >> 7) & 1
 
-    def readStatus(self):
+    def read_status(self):
         result = self.register & 0x1F
         result |= self.flagSpriteOverflow << 5
         result |= self.flagSpriteZeroHit << 6
@@ -181,17 +181,17 @@ class PPU:
         self.w = 0
         return result & 0xFF
 
-    def writeOAMAddress(self, oam):
+    def write_OAM_address(self, oam):
         self.oamAddress = oam
 
-    def readOAMData(self):
+    def read_OAM_data(self):
         return self.oamData[self.oamAddress]
 
-    def writeOAMData(self, value):
+    def write_OAM_data(self, value):
         self.oamData[self.oamAddress] = value
         self.oamAddress = (self.oamAddress + 1) & 0xFF
 
-    def writeScroll(self, value):
+    def write_scroll(self, value):
         if self.w == 0:
             self.t = (self.t & 0xFFE0) | (value >> 3)
             self.x = value & 0x07
@@ -201,7 +201,7 @@ class PPU:
             self.t = (self.t & 0xFC1F) | ((value & 0xF8) << 2)
             self.w = 0
 
-    def writeAddress(self, value):
+    def write_address(self, value):
         if self.w == 0:
             self.t = (self.t & 0x80FF) | ((value & 0x3F) << 8)
             self.w = 1
@@ -210,7 +210,7 @@ class PPU:
             self.v = self.t
             self.w = 0
 
-    def readData(self):
+    def read_data(self):
         value = self.nes.vram[self.v]
         if self.v % 0x4000 < 0x3F00:
             buffered = self.bufferedData
@@ -225,14 +225,14 @@ class PPU:
             self.v += 32
         return value
 
-    def writeData(self, value):
+    def write_data(self, value):
         self.nes.vram[self.v] = value
         if self.flagIncrement == 0:
             self.v += 1
         else:
             self.v += 32
 
-    def writeDMA(self, value):
+    def write_DMA(self, value):
         cpu = self.nes.cpu
         address = (value << 8) & 0xFFFF
         for i in range(256):
@@ -244,14 +244,14 @@ class PPU:
         if cpu.cycles % 2 == 1:
             cpu.stall += 1
 
-    def incrementX(self):
+    def increment_x(self):
         if self.v & 0x001F == 31:
             self.v &= 0xFFE0
             self.v ^= 0x0400
         else:
             self.v += 1
 
-    def incrementY(self):
+    def increment_y(self):
         if self.v & 0x7000 != 0x7000:
             self.v += 0x1000
         else:
@@ -373,7 +373,7 @@ class PPU:
                 color = sprite | 0x10
             else:
                 color = background
-        c = Palette[self.readPalette(color) % 64]
+        c = Palette[self.read_palette(color) % 64]
         self.back.SetRGBA(x, y, c)
 
     def fetchSpritePattern(self, i, row):
@@ -492,9 +492,9 @@ class PPU:
                 self.copyY()
             if renderline:
                 if fetchcycle and self.cycle % 8 == 0:
-                    self.incrementX()
+                    self.increment_x()
                 if self.cycle == 256:
-                    self.incrementY()
+                    self.increment_y()
                 if self.cycle == 257:
                     self.copyX()
         if renderingEnabled:

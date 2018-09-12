@@ -1,7 +1,10 @@
 # Cal-NES
 An NES Emulator started during Calhacks 4.0 that I continued on my own. 
 
-![WIP](screenshot.png?raw=true "Wow this looks bad haha")
+# Zelda Screen Test ROM 
+<p align="center">
+  <img src="screenshot.png" width=385 height=376>
+</p>
 
 # Features
 - ROM Load
