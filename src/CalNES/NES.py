@@ -2,13 +2,14 @@ from .ROM import ROM
 from .RAM import ppuMEM
 from .CPU import CPU
 from .PPU import PPU
+from .Joy import Joy, Button
 from .Mapper import create_mapper
 import pygame
 import time
 import os
 
 class NES:
-    __slots__ = ['rom', 'cpu', 'ppu', 'apu', 'mmap', 'surface', 'ram', 'vram']
+    __slots__ = ['rom', 'cpu', 'ppu', 'apu', 'mmap', 'surface', 'ram', 'vram', 'joy1']
 
     # TOOD: attach vram and ram to this, and point all references from ppu.mem
     def __init__(self, rom_name, DEBUG=False):
@@ -21,6 +22,7 @@ class NES:
         self.cpu.reset()
         self.ppu = PPU(self)
         self.surface = pygame.display.set_mode([256 * 3, 240 * 3])
+        self.joy1 = Joy()
 
     def step(self):
         event = pygame.event.get()
@@ -41,3 +43,15 @@ class NES:
         surface_buffer = self.current_buffer()
         self.surface.blit(surface_buffer.surface, (0, 0))
         pygame.display.update()
+
+    def button_down(self, controller, button):
+        if controller == 1:
+            self.joy1.button_down(button)
+        else:
+            print("Controller {} is not supported yet".format(controller))
+
+    def button_up(self, controller, button):
+        if controller == 1:
+            self.joy1.button_up(button)
+        else:
+            print("Controller {} is not supported yet".format(controller))

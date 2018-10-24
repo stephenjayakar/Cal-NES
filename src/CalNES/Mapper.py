@@ -6,11 +6,13 @@ def create_mapper(nes, mapper_number):
         exit()
 
 class Mapper0:
-    __slots__ = ['rom', 'prgBanks', 'prgBank1', 'prgBank2', 'nes']
+    __slots__ = ['rom', 'prgBanks', 'prgBank1', 'prgBank2', 'nes', 'joy1strobe', 'joypad_last_write']
     
     def __init__(self, nes):
         self.nes = nes
         self.rom = nes.rom
+        self.joy1strobe = 0
+        self.joypad_last_write = 0
 
     def reset(self):
         self.load_rom()
@@ -46,8 +48,7 @@ class Mapper0:
         elif nibble == 4:
             # Joy 1
             if address == 0x4016:
-                # TODO: this definitely isn't right, but temporary always 1 :)
-                return 0x41
+                value = self.joy1read()
             else:
                 print("APU or Joy 2 at address {}".format(address))
         return 0
@@ -60,7 +61,10 @@ class Mapper0:
         elif address == 0x4015:
             print('sound channel switch')
         elif address == 0x4016:
-            print('joystick 1 + strobe')
+            if (not value & 1 and self.joypad_last_write):
+                self.joy1strobe = 0
+                # TODO set joy2 strobe
+            self.joypad_last_write = value
         elif address == 0x4017:
             print('sound channel frame sequencer')
         else:
@@ -113,6 +117,17 @@ class Mapper0:
         
         self.nes.vram[address: address + 4096] = self.rom.chr_rom[offset: offset + 4096]
 
+    def joy1read(self) -> int:
+        strobe = self.joy1strobe
+        value = 0
+        if strobe <= 7:
+            value = self.nes.joy1.state[strobe]
+        elif strobe == 19:
+            value = 1
+
+        self.joy1strobe = (strobe + 1) % 24
+        return value
+        
 # class Mapper1:
 #     rom = None
 #     shiftRegister = 0
