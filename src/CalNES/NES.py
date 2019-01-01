@@ -28,7 +28,7 @@ class NES:
         event = pygame.event.get()
         for e in event:
             if e.type == pygame.QUIT:
-                quit()            
+                quit()
         self.cpu.step()
         for i in range(3):
             self.ppu.step()

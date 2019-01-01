@@ -96,7 +96,7 @@ class PPU:
     @property
     def v(self):
         return self._v
-    
+
     @v.setter
     def v(self, value):
         self._v = value
@@ -402,7 +402,7 @@ class PPU:
         for i in range(8):
             p1, p2 = 0, 0
             if attributes & 0x40 == 0x40:
-                p1 = (lowTileByte & 1) 
+                p1 = (lowTileByte & 1)
                 p2 = (highTileByte & 1) << 1
                 lowTileByte >>= 1
                 highTileByte >>= 1

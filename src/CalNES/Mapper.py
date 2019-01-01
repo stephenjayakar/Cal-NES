@@ -7,7 +7,7 @@ def create_mapper(nes, mapper_number):
 
 class Mapper0:
     __slots__ = ['rom', 'prgBanks', 'prgBank1', 'prgBank2', 'nes', 'joy1strobe', 'joypad_last_write']
-    
+
     def __init__(self, nes):
         self.nes = nes
         self.rom = nes.rom
@@ -99,7 +99,7 @@ class Mapper0:
     def load_battery(self):
         print('load battery not impl')
         return None
-        
+
     def load_rom_bank(self, bank, address):
         bank %= self.rom.prg_rom_size
         size = 16 * 1024
@@ -114,7 +114,7 @@ class Mapper0:
 
         bank %= self.nes.rom.chr_rom_size
         offset = bank * 4096
-        
+
         self.nes.vram[address: address + 4096] = self.rom.chr_rom[offset: offset + 4096]
 
     def joy1read(self) -> int:
@@ -127,7 +127,7 @@ class Mapper0:
 
         self.joy1strobe = (strobe + 1) % 24
         return value
-        
+
 # class Mapper1:
 #     rom = None
 #     shiftRegister = 0
@@ -139,7 +139,7 @@ class Mapper0:
 #     chrBank1 = 0
 #     prgOffsets = [0] * 2
 #     chrOffsets = [0] * 2
-    
+
 #     def __init__(self, rom):
 #         self.rom = rom
 #         self.shiftRegister = 0x10

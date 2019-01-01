@@ -38,7 +38,7 @@ while True:
                 else:
                     n.button_up(1, button)
         elif event.type == pygame.QUIT:
-            quit()     
+            quit()
     n.step()
     cur_time = time.time()
     if cur_time - timer >= 0.16639:

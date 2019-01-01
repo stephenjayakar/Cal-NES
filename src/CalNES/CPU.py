@@ -55,7 +55,6 @@ class CPU:
     def mwrite(self, address, value):
         self.nes.mmap.write(address, value)
 
-    # Executes a single instruction; replacing run_instruction for now without error handling
     def step(self):
         self.page_crossed = False
         self.elapsed_cycles += 1
@@ -80,7 +79,6 @@ class CPU:
         f(opcode)
         if self.page_crossed:
             self.cycles += instruction_page_cycles[opcode]
-        return
 
     def add_branch_cycles(self, address):
         self.cycles += 1

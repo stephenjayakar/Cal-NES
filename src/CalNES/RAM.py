@@ -1,7 +1,6 @@
 class ppuMEM:
     nes = None
     mode = 0
-    
     def __init__(self, nes):
         self.nes = nes
         self.ram = bytearray(0x2000)
